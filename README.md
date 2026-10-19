@@ -46,7 +46,7 @@ Aplikasi manajemen bisnis laundry berbasis **mobile (Flutter)** dengan **backend
 - **Kelola layanan & harga** — perubahan harga tercatat riwayatnya (price snapshot di order).
 - **Cashflow** — kas masuk/keluar/pengeluaran.
 - **Audit log** — jejak perubahan data penting.
-- **Notifikasi** — misalnya saat cucian siap diambil.
+- **Notifikasi** — misalnya saat cucian siap diambil atau sudah selesai.
 
 ---
 
