@@ -6,6 +6,7 @@ use App\Models\User;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use Exception;
+use RuntimeException;
 
 class JwtService
 {
@@ -14,7 +15,19 @@ class JwtService
 
     public function __construct()
     {
-        $this->secret = config('app.jwt_secret', env('JWT_SECRET', 'laundryku_super_secret_jwt_key_2026_demo_sec'));
+        $secret = config('app.jwt_secret', env('JWT_SECRET'));
+
+        if (empty($secret)) {
+            // Pada mode production, wajib disetel di .env demi keamanan
+            if (app()->environment('production')) {
+                throw new RuntimeException('JWT_SECRET wajib dikonfigurasi di file .env pada environment production.');
+            }
+
+            // Fallback khusus environment lokal development agar teman/penguji tidak error jika belum mengisi .env
+            $secret = 'laundryku_development_jwt_secret_key_demo_2026';
+        }
+
+        $this->secret = (string) $secret;
         $this->ttl = (int) config('app.jwt_ttl', env('JWT_TTL', 86400));
     }
 

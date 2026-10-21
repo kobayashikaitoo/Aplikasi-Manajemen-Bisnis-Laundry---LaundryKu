@@ -99,9 +99,47 @@ class ApiClient {
     }
   }
 
+  Future<dynamic> put(
+    String path, {
+    dynamic data,
+    Map<String, dynamic>? headers,
+    Map<String, dynamic>? queryParameters,
+  }) async {
+    try {
+      final res = await dio.put(
+        path,
+        data: data,
+        queryParameters: queryParameters,
+        options: Options(headers: headers),
+      );
+      return res.data['data'] ?? res.data;
+    } on DioException catch (e) {
+      _handleDioError(e);
+    }
+  }
+
   Future<dynamic> patch(String path, {dynamic data}) async {
     try {
       final res = await dio.patch(path, data: data);
+      return res.data['data'] ?? res.data;
+    } on DioException catch (e) {
+      _handleDioError(e);
+    }
+  }
+
+  Future<dynamic> delete(
+    String path, {
+    dynamic data,
+    Map<String, dynamic>? headers,
+    Map<String, dynamic>? queryParameters,
+  }) async {
+    try {
+      final res = await dio.delete(
+        path,
+        data: data,
+        queryParameters: queryParameters,
+        options: Options(headers: headers),
+      );
       return res.data['data'] ?? res.data;
     } on DioException catch (e) {
       _handleDioError(e);

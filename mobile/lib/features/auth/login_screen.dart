@@ -5,6 +5,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/ui_kit.dart';
 import 'auth_controller.dart';
+import 'forgot_password_screen.dart';
+import 'register_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -336,43 +338,89 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     ),
                                   ),
                           ),
-                          const SizedBox(height: 14),
-
-                          // Tautan Daftar / Lupa Sandi
-                          Text.rich(
-                            TextSpan(
-                              text: 'Belum punya akun? ',
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 12,
-                                color: AppColors.textSecondary,
-                              ),
+                          // Tombol Daftar Akun Pelanggan (Hanya muncul di tab Pelanggan)
+                          if (_roleTab == 0) ...[
+                            const SizedBox(height: 18),
+                            // Pemisah atau
+                            Row(
                               children: [
-                                TextSpan(
-                                  text: 'Daftar',
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.primary,
+                                const Expanded(child: Divider()),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10),
+                                  child: Text(
+                                    'atau',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 11,
+                                      color: AppColors.textMuted,
+                                    ),
                                   ),
                                 ),
-                                TextSpan(
-                                  text: ' · ',
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 12,
-                                    color: AppColors.textMuted,
-                                  ),
-                                ),
-                                TextSpan(
-                                  text: 'Lupa sandi?',
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.primary,
-                                  ),
-                                ),
+                                const Expanded(child: Divider()),
                               ],
                             ),
-                            textAlign: TextAlign.center,
+                            const SizedBox(height: 14),
+
+                            // Tombol Buat Akun Baru (Pelanggan)
+                            SizedBox(
+                              height: 48,
+                              child: OutlinedButton.icon(
+                                onPressed: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => const RegisterScreen(),
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.person_add_rounded,
+                                    size: 18),
+                                label: Text(
+                                  'Daftar Akun Pelanggan',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: AppColors.primary,
+                                  side: const BorderSide(
+                                      color: AppColors.primary, width: 1.5),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 8),
+
+                          // Tombol Lupa Kata Sandi
+                          Center(
+                            child: TextButton.icon(
+                              onPressed: () async {
+                                final email =
+                                    await Navigator.of(context).push<String>(
+                                  MaterialPageRoute(
+                                    builder: (_) => ForgotPasswordScreen(
+                                      initialEmail: _emailCtrl.text.trim(),
+                                    ),
+                                  ),
+                                );
+                                if (email != null && email.isNotEmpty) {
+                                  setState(() => _emailCtrl.text = email);
+                                }
+                              },
+                              icon: const Icon(Icons.lock_reset_rounded,
+                                  size: 16, color: AppColors.textSecondary),
+                              label: Text(
+                                'Lupa kata sandi?',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ),
                           ),
                         ],
                       ),

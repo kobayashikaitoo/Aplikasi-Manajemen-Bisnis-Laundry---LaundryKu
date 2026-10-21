@@ -9,6 +9,7 @@ import '../orders/orders_providers.dart';
 import 'audit_log_screen.dart';
 import 'cashflow_screen.dart';
 import 'services_screen.dart';
+import 'staff_screen.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -174,6 +175,11 @@ class DashboardScreen extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Column(
                   children: [
+                    _menuTile(context, Icons.people_rounded, 'Kelola Pegawai / Kasir',
+                        'Daftar dan buat akun kasir baru', () {
+                      Navigator.of(context).push(MaterialPageRoute(
+                          builder: (_) => const StaffScreen()));
+                    }),
                     _menuTile(context, Icons.sell_rounded, 'Layanan & Harga',
                         'Ubah tarif, tercatat di riwayat', () {
                       Navigator.of(context).push(MaterialPageRoute(

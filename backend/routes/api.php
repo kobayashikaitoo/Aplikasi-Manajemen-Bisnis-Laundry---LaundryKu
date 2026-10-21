@@ -9,6 +9,7 @@ use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ServiceController;
+use App\Http\Controllers\StaffController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -19,10 +20,16 @@ use Illuminate\Support\Facades\Route;
 
 // Public routes
 Route::post('/auth/login', [AuthController::class, 'login']);
+Route::post('/auth/register', [AuthController::class, 'register']);
+Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword']);
 
 // Authenticated routes
 Route::middleware(['auth.jwt'])->group(function () {
     Route::get('/auth/me', [AuthController::class, 'me']);
+    Route::put('/auth/profile', [AuthController::class, 'updateProfile']);
+    Route::post('/auth/change-password', [AuthController::class, 'changePassword']);
+    Route::put('/auth/address', [AuthController::class, 'updateAddress']);
+    Route::delete('/auth/account', [AuthController::class, 'deleteAccount']);
 
     // Services (Read for all, Write for Pemilik)
     Route::get('/services', [ServiceController::class, 'index']);
@@ -51,12 +58,17 @@ Route::middleware(['auth.jwt'])->group(function () {
     // Cash Transactions / Expenses (Pemilik only)
     Route::post('/cash-transactions', [CashTransactionController::class, 'store'])->middleware(['role:pemilik']);
 
-    // Reports (Pemilik only)
+    // Reports & Staff Management (Pemilik only)
     Route::middleware(['role:pemilik'])->group(function () {
         Route::get('/reports/dashboard', [ReportController::class, 'dashboard']);
         Route::get('/reports/cashflow', [ReportController::class, 'cashflow']);
         Route::get('/reports/demo-queries', [ReportController::class, 'demoQueries']);
         Route::get('/audit-logs', [AuditLogController::class, 'index']);
+
+        // Kelola Pegawai / Kasir
+        Route::get('/staff', [StaffController::class, 'index']);
+        Route::post('/staff', [StaffController::class, 'store']);
+        Route::patch('/staff/{id}/toggle-status', [StaffController::class, 'toggleStatus']);
     });
 
     // Notifications (Customer & All)

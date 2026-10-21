@@ -12,6 +12,16 @@ backend_old_*/
 .DS_Store
 Thumbs.db
 
+# === Keamanan & File Konfigurasi Sensitif ===
+.env
+.env.*
+!.env.example
+*.key
+*.keystore
+*.jks
+key.properties
+local.properties
+
 # === Catatan: backend/vendor, backend/.env, mobile/.dart_tool, build/,
 # android/local.properties sudah di-ignores oleh .gitignore masing-masing
 # subfolder (bawaan Laravel & Flutter). ===
