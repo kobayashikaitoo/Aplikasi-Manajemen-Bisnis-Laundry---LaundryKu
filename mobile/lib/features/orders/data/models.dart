@@ -166,6 +166,7 @@ class OrderModel {
   final List<StatusLogModel> statusLogs;
   final List<OrderPhotoModel> photos;
   final List<PaymentModel> payments;
+  final List<ClaimModel> claims;
 
   const OrderModel({
     required this.id,
@@ -184,6 +185,7 @@ class OrderModel {
     this.statusLogs = const [],
     this.photos = const [],
     this.payments = const [],
+    this.claims = const [],
   });
 
   factory OrderModel.fromJson(Map<String, dynamic> json) => OrderModel(
@@ -213,12 +215,17 @@ class OrderModel {
         payments: ((json['payments'] ?? []) as List)
             .map((e) => PaymentModel.fromJson(e))
             .toList(),
+        claims: ((json['claims'] ?? []) as List)
+            .map((e) => ClaimModel.fromJson(e))
+            .toList(),
       );
 
   int get totalPaid => payments.fold(0, (sum, p) => sum + p.amount);
   int get remainingBalance => (totalAmount - totalPaid).clamp(0, totalAmount);
   bool get hasInitialPhoto =>
       photos.any((p) => p.photoType == 'initial');
+  ClaimModel? get activeClaim => claims.isNotEmpty ? claims.last : null;
+  bool get hasClaim => claims.isNotEmpty;
   bool get isClosed =>
       status == 'Selesai' || status == 'Dibatalkan' || status == 'Tidak Diambil';
 }
@@ -407,6 +414,44 @@ class CashflowModel {
           .toList(),
     );
   }
+}
+
+class ClaimModel {
+  final int id;
+  final int orderId;
+  final String claimType;
+  final String description;
+  final String status;
+  final String? resolution;
+  final int refundAmount;
+  final String? createdAt;
+  final List<OrderPhotoModel> photos;
+
+  const ClaimModel({
+    required this.id,
+    required this.orderId,
+    required this.claimType,
+    required this.description,
+    required this.status,
+    this.resolution,
+    required this.refundAmount,
+    this.createdAt,
+    this.photos = const [],
+  });
+
+  factory ClaimModel.fromJson(Map<String, dynamic> json) => ClaimModel(
+        id: json['id'] ?? 0,
+        orderId: (json['order_id'] ?? 0).toInt(),
+        claimType: json['claim_type'] ?? '',
+        description: json['description'] ?? '',
+        status: json['status'] ?? 'Diajukan',
+        resolution: json['resolution'],
+        refundAmount: (json['refund_amount'] ?? 0).toInt(),
+        createdAt: json['created_at'],
+        photos: ((json['photos'] ?? []) as List)
+            .map((e) => OrderPhotoModel.fromJson(e))
+            .toList(),
+      );
 }
 
 class PointsModel {

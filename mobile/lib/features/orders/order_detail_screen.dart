@@ -13,6 +13,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../core/widgets/ui_kit.dart';
 import '../auth/auth_controller.dart';
+import 'claim_screen.dart';
 import 'orders_providers.dart';
 import 'data/models.dart';
 
@@ -58,6 +59,9 @@ class OrderDetailScreen extends ConsumerWidget {
               _TimelineCard(order: order),
               if (order.payments.isNotEmpty) _PaymentsCard(order: order),
               if (isStaff) _ActionsCard(order: order, isOwner: user.isOwner),
+              // Klaim: tombol ajukan untuk pelanggan (Selesai), atau info status jika klaim sudah ada
+              if ((!isStaff && order.status == 'Selesai') || order.hasClaim)
+                _ClaimCard(order: order),
             ],
           ),
         ),
@@ -285,7 +289,7 @@ class _PhotosCardState extends ConsumerState<_PhotosCard> {
 
   @override
   Widget build(BuildContext context) {
-    final photos = widget.order.photos;
+    final photos = widget.order.photos.where((p) => p.photoType == 'initial').toList();
     return SectionCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -713,8 +717,6 @@ class _TimelineDot extends StatelessWidget {
   }
 }
 
-
-
 // ---------------------------------------------------------------- Payments
 class _PaymentsCard extends StatelessWidget {
   final OrderModel order;
@@ -879,6 +881,157 @@ Future<String?> _askReason(BuildContext context, String label) async {
       ],
     ),
   );
+}
+
+// ---------------------------------------------------------------- Claim Card (Customer only, status Selesai)
+class _ClaimCard extends StatelessWidget {
+  final OrderModel order;
+  const _ClaimCard({required this.order});
+
+  bool get _withinDeadline {
+    final completed = order.completedAt;
+    if (completed == null) return false;
+    try {
+      final dt = DateTime.parse(completed);
+      return DateTime.now().isBefore(dt.add(const Duration(days: 7)));
+    } catch (_) {
+      return false;
+    }
+  }
+
+  String get _deadlineText {
+    final completed = order.completedAt;
+    if (completed == null) return '';
+    try {
+      final dt = DateTime.parse(completed).add(const Duration(days: 7));
+      return DateFormat("d MMM, HH.mm", 'id_ID').format(dt.toLocal());
+    } catch (_) {
+      return '';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final claim = order.activeClaim;
+    if (claim != null) {
+      return SectionCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Status Klaim',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                ),
+                StatusChip(status: claim.status),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Jenis masalah: ${claim.claimType}',
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              claim.description,
+              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            ),
+            if (claim.resolution != null && claim.resolution!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Tanggapan: ${claim.resolution}',
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primary),
+              ),
+            ],
+            if (claim.refundAmount > 0) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Refund: ${Formatters.rupiah(claim.refundAmount)}',
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.success),
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+
+    final within = _withinDeadline;
+    return SectionCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Ajukan Klaim',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                ),
+              ),
+              if (within && _deadlineText.isNotEmpty)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.danger.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'Batas s.d. $_deadlineText',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.danger,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            within
+                ? 'Ada masalah dengan cucian Anda? Ajukan klaim sebelum masa klaim habis.'
+                : 'Masa pengajuan klaim untuk order ini sudah habis (7 hari setelah selesai).',
+            style: TextStyle(
+              fontSize: 12,
+              color: within ? AppColors.textSecondary : AppColors.textMuted,
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor:
+                    within ? AppColors.accent : AppColors.textMuted,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 0,
+              ),
+              onPressed: within
+                  ? () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ClaimScreen(order: order),
+                        ),
+                      )
+                  : null,
+              icon: const Icon(Icons.flag_rounded, size: 18),
+              label: const Text(
+                'Ajukan Klaim',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 // ---------------------------------------------------------------- Payment sheet

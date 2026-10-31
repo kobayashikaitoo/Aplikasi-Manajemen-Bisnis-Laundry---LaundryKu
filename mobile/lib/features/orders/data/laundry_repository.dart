@@ -148,4 +148,43 @@ class LaundryRepository {
     final res = await _api.get('/audit-logs');
     return (res as List).map((e) => AuditLogModel.fromJson(e)).toList();
   }
+
+  // ---- Claims ----
+  /// Mengambil klaim yang ada untuk sebuah order (null jika belum ada klaim).
+  Future<ClaimModel?> fetchClaim(int orderId) async {
+    final res = await _api.get('/orders/$orderId/claims');
+    if (res == null) return null;
+    if (res is Map<String, dynamic>) {
+      if (res['data'] == null && !res.containsKey('claim_type')) return null;
+      final map = res['data'] is Map<String, dynamic>
+          ? res['data'] as Map<String, dynamic>
+          : res;
+      if (map['id'] == null || map['id'] == 0) return null;
+      return ClaimModel.fromJson(map);
+    }
+    return null;
+  }
+
+  /// Mengajukan klaim baru untuk order pelanggan.
+  Future<ClaimModel> submitClaim({
+    required int orderId,
+    required String claimType,
+    required String description,
+    List<String>? photoBase64List,
+  }) async {
+    final res = await _api.post('/orders/$orderId/claims', data: {
+      'claim_type': claimType,
+      'description': description,
+      if (photoBase64List != null && photoBase64List.isNotEmpty)
+        'photos': photoBase64List,
+    });
+    if (res == null || res is! Map<String, dynamic>) {
+      throw ApiException(
+        code: 'INVALID_RESPONSE',
+        message: 'Gagal menyimpan klaim. Silakan coba lagi.',
+        statusCode: 500,
+      );
+    }
+    return ClaimModel.fromJson(res);
+  }
 }

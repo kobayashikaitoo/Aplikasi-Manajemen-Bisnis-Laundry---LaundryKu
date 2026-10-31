@@ -116,7 +116,8 @@ class OrderController extends Controller
             'photos',
             'payments.receivedBy',
             'createdBy',
-            'branch'
+            'branch',
+            'claims'
         ])->findOrFail($id);
 
         // RBAC check

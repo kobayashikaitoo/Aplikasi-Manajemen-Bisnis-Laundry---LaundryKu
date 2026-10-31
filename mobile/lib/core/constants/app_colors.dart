@@ -44,9 +44,15 @@ class AppColors {
         return const Color(0xFF14B8A6); // Teal
       case 'Lunas':
       case 'Selesai':
+      case 'Disetujui':
         return const Color(0xFF10B981); // Emerald
+      case 'Diajukan':
+        return const Color(0xFF0284C7); // Light Blue
+      case 'Ditinjau':
+        return const Color(0xFFF59E0B); // Amber
       case 'Tidak Diambil':
       case 'Dibatalkan':
+      case 'Ditolak':
         return const Color(0xFFEF4444); // Red
       default:
         return textSecondary;

@@ -3,6 +3,7 @@
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CashTransactionController;
+use App\Http\Controllers\ClaimController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OrderController;
@@ -74,4 +75,11 @@ Route::middleware(['auth.jwt'])->group(function () {
     // Notifications (Customer & All)
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::patch('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+
+    // Claims — Pelanggan submit; Pemilik/Pegawai review status
+    Route::get('/claims', [ClaimController::class, 'index']);
+    Route::post('/orders/{orderId}/claims', [ClaimController::class, 'store']);
+    Route::get('/orders/{orderId}/claims', [ClaimController::class, 'show']);
+    Route::patch('/claims/{id}/status', [ClaimController::class, 'updateStatus'])
+        ->middleware('role:pemilik,pegawai');
 });
