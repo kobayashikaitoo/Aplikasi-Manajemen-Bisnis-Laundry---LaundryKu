@@ -261,27 +261,27 @@ class _CustomerHomeTab extends ConsumerWidget {
                     _serviceCategory(
                       icon: Icons.scale_outlined,
                       label: 'Kiloan',
-                      onTap: () => _openCreateOrderWith(context),
+                      onTap: () => _openCreateOrderWith(context, 'Kiloan'),
                     ),
                     _serviceCategory(
                       icon: Icons.checkroom_outlined,
                       label: 'Satuan',
-                      onTap: () => _openCreateOrderWith(context),
+                      onTap: () => _openCreateOrderWith(context, 'Satuan'),
                     ),
                     _serviceCategory(
                       icon: Icons.bolt_rounded,
                       label: 'Express',
-                      onTap: () => _openCreateOrderWith(context),
+                      onTap: () => _openCreateOrderWith(context, 'Kiloan'),
                     ),
                     _serviceCategory(
                       icon: Icons.dry_cleaning_rounded,
                       label: 'Sepatu',
-                      onTap: () => _openCreateOrderWith(context),
+                      onTap: () => _openCreateOrderWith(context, 'Sepatu'),
                     ),
                     _serviceCategory(
                       icon: Icons.grid_view_rounded,
                       label: 'Karpet',
-                      onTap: () => _openCreateOrderWith(context),
+                      onTap: () => _openCreateOrderWith(context, 'Karpet'),
                     ),
                   ],
                 ),
@@ -513,9 +513,9 @@ class _CustomerHomeTab extends ConsumerWidget {
     );
   }
 
-  void _openCreateOrderWith(BuildContext context) {
+  void _openCreateOrderWith(BuildContext context, [String? category]) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const CreateOrderScreen()),
+      MaterialPageRoute(builder: (_) => CreateOrderScreen(initialCategory: category)),
     );
   }
 
