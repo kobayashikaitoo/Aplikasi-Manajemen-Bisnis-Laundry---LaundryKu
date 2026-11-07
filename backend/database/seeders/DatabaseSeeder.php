@@ -3,10 +3,13 @@
 namespace Database\Seeders;
 
 use App\Enums\OrderStatus;
+use App\Models\AuditLog;
 use App\Models\Branch;
 use App\Models\BranchSetting;
 use App\Models\CashTransaction;
+use App\Models\Claim;
 use App\Models\Customer;
+use App\Models\Delivery;
 use App\Models\LoyaltyTransaction;
 use App\Models\Notification;
 use App\Models\Order;
@@ -29,6 +32,7 @@ class DatabaseSeeder extends Seeder
         $rolePemilik = Role::firstOrCreate(['name' => 'pemilik'], ['guard_name' => 'api']);
         $rolePegawai = Role::firstOrCreate(['name' => 'pegawai'], ['guard_name' => 'api']);
         $rolePelanggan = Role::firstOrCreate(['name' => 'pelanggan'], ['guard_name' => 'api']);
+        $roleKurir = Role::firstOrCreate(['name' => 'kurir'], ['guard_name' => 'api']);
 
         // 2. Branch & Settings
         $branch = Branch::firstOrCreate(
@@ -85,6 +89,18 @@ class DatabaseSeeder extends Seeder
                 'branch_id' => $branch->id,
                 'name' => 'Dodi (Kasir 2)',
                 'phone' => '082222222222',
+                'password' => $passwordHash,
+                'is_active' => true,
+            ]
+        );
+
+        $kurir1 = User::firstOrCreate(
+            ['email' => 'kurir@laundryku.com'],
+            [
+                'role_id' => $roleKurir->id,
+                'branch_id' => $branch->id,
+                'name' => 'Bambang (Kurir)',
+                'phone' => '083333333331',
                 'password' => $passwordHash,
                 'is_active' => true,
             ]
@@ -415,5 +431,52 @@ class DatabaseSeeder extends Seeder
                 'created_at' => Carbon::now('UTC')->subDays(2),
             ]
         );
+
+        // 9. Deliveries for Kurir
+        $firstOrder = Order::first();
+        $lastOrder = Order::latest()->first();
+
+        if ($firstOrder) {
+            Delivery::firstOrCreate(
+                ['order_id' => $firstOrder->id, 'type' => 'delivery'],
+                [
+                    'courier_user_id' => $kurir1->id,
+                    'type' => 'delivery',
+                    'status' => 'pending',
+                    'scheduled_at' => Carbon::now('UTC')->addHours(2),
+                    'completed_at' => null,
+                    'fee' => 10000,
+                ]
+            );
+        }
+
+        if ($lastOrder && $lastOrder->id !== $firstOrder?->id) {
+            Delivery::firstOrCreate(
+                ['order_id' => $lastOrder->id, 'type' => 'pickup'],
+                [
+                    'courier_user_id' => $kurir1->id,
+                    'type' => 'pickup',
+                    'status' => 'on_the_way',
+                    'scheduled_at' => Carbon::now('UTC')->subHours(1),
+                    'completed_at' => null,
+                    'fee' => 8000,
+                ]
+            );
+        }
+
+        // 10. Sample Claim for Owner approval
+        if ($firstOrder && $custBudi) {
+            Claim::firstOrCreate(
+                ['order_id' => $firstOrder->id],
+                [
+                    'customer_id' => $custBudi->id,
+                    'claim_type' => 'Pakaian Rusak / Robek',
+                    'description' => 'Ada robekan kecil di bagian kancing kemeja putih saat diterima kembali.',
+                    'status' => 'Diajukan',
+                    'resolution' => null,
+                    'refund_amount' => 35000,
+                ]
+            );
+        }
     }
 }

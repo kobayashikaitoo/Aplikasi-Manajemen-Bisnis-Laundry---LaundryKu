@@ -223,7 +223,9 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Peran: Kasir / Staf Outlet',
+                      staff.role.toLowerCase() == 'kurir'
+                          ? 'Peran: Kurir Antar-Jemput'
+                          : 'Peran: Kasir / Staf Outlet',
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 11.5,
                         color: AppColors.textSecondary,
@@ -334,6 +336,7 @@ class _AddStaffFormState extends ConsumerState<_AddStaffForm> {
   final _emailCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
+  String _selectedRole = 'pegawai';
   bool _obscurePassword = true;
   bool _saving = false;
 
@@ -355,6 +358,7 @@ class _AddStaffFormState extends ConsumerState<_AddStaffForm> {
           email: _emailCtrl.text.trim(),
           password: _passwordCtrl.text,
           phone: _phoneCtrl.text.trim(),
+          role: _selectedRole,
         );
 
     if (!mounted) return;
@@ -409,6 +413,94 @@ class _AddStaffFormState extends ConsumerState<_AddStaffForm> {
             ),
           ),
           const SizedBox(height: 16),
+
+          // Pilihan Peran: Kasir vs Kurir
+          Container(
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => setState(() => _selectedRole = 'pegawai'),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        color: _selectedRole == 'pegawai'
+                            ? Colors.white
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(9),
+                        boxShadow: _selectedRole == 'pegawai'
+                            ? [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.05),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 1),
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: Center(
+                        child: Text(
+                          'Kasir / Staf',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 12.5,
+                            fontWeight: _selectedRole == 'pegawai'
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                            color: _selectedRole == 'pegawai'
+                                ? AppColors.primary
+                                : AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => setState(() => _selectedRole = 'kurir'),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        color: _selectedRole == 'kurir'
+                            ? Colors.white
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(9),
+                        boxShadow: _selectedRole == 'kurir'
+                            ? [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.05),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 1),
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: Center(
+                        child: Text(
+                          'Kurir Antar-Jemput',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 12.5,
+                            fontWeight: _selectedRole == 'kurir'
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                            color: _selectedRole == 'kurir'
+                                ? AppColors.primary
+                                : AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
 
           // Nama
           TextFormField(

@@ -21,4 +21,5 @@ class Order extends Model {
     public function photos(): HasMany { return $this->hasMany(OrderPhoto::class); }
     public function payments(): HasMany { return $this->hasMany(Payment::class); }
     public function claims(): HasMany { return $this->hasMany(Claim::class); }
+    public function deliveries(): HasMany { return $this->hasMany(Delivery::class); }
 }

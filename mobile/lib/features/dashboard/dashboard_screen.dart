@@ -6,6 +6,8 @@ import '../../core/utils/currency_formatter.dart';
 import '../../core/widgets/ui_kit.dart';
 import '../orders/order_detail_screen.dart';
 import '../orders/orders_providers.dart';
+import 'approval_screen.dart';
+import 'approvals_provider.dart';
 import 'audit_log_screen.dart';
 import 'cashflow_screen.dart';
 import 'services_screen.dart';
@@ -47,6 +49,57 @@ class DashboardScreen extends ConsumerWidget {
                       fontSize: 13, color: AppColors.textSecondary),
                 ),
               ),
+              Builder(builder: (context) {
+                final approvals = ref.watch(approvalsProvider);
+                if (approvals.pendingCount <= 0) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: AppColors.warningLight,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFFFDE68A)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.pending_actions_rounded,
+                            color: AppColors.warning, size: 22),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${approvals.pendingCount} Permintaan Butuh Persetujuan',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
+                                  color: AppColors.warning,
+                                ),
+                              ),
+                              const Text(
+                                'Klaim pelanggan, diskon khusus, atau batal order.',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.of(context).push(MaterialPageRoute(
+                                builder: (_) => const ApprovalScreen()));
+                          },
+                          child: const Text('Tinjau'),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
               const SizedBox(height: 10),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -179,6 +232,11 @@ class DashboardScreen extends ConsumerWidget {
                         'Daftar dan buat akun kasir baru', () {
                       Navigator.of(context).push(MaterialPageRoute(
                           builder: (_) => const StaffScreen()));
+                    }),
+                    _menuTile(context, Icons.verified_user_rounded, 'Persetujuan & Otorisasi',
+                        'Otorisasi diskon, pembatalan & klaim', () {
+                      Navigator.of(context).push(MaterialPageRoute(
+                          builder: (_) => const ApprovalScreen()));
                     }),
                     _menuTile(context, Icons.sell_rounded, 'Layanan & Harga',
                         'Ubah tarif, tercatat di riwayat', () {

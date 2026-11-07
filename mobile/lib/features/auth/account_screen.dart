@@ -4,11 +4,13 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/ui_kit.dart';
+import '../dashboard/approval_screen.dart';
 import '../dashboard/audit_log_screen.dart';
 import '../dashboard/cashflow_screen.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../dashboard/services_screen.dart';
 import '../dashboard/staff_screen.dart';
+import '../orders/sync_queue_screen.dart';
 import 'auth_controller.dart';
 
 class AccountScreen extends ConsumerStatefulWidget {
@@ -30,9 +32,10 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
     final user = ref.watch(authProvider).user;
     if (user == null) return const SizedBox.shrink();
 
-    final roleLabel = switch (user.role) {
+    final roleLabel = switch (user.role.toLowerCase()) {
       'pemilik' => 'Pemilik (Owner)',
       'pegawai' => 'Pegawai / Kasir',
+      'kurir' => 'Kurir Antar-Jemput',
       _ => 'Pelanggan (Member)',
     };
 
@@ -67,6 +70,10 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
             _tile(context, Icons.people_rounded, 'Kelola Pegawai / Kasir', () {
               Navigator.of(context).push(MaterialPageRoute(
                   builder: (_) => const StaffScreen()));
+            }),
+            _tile(context, Icons.verified_user_rounded, 'Persetujuan & Otorisasi', () {
+              Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => const ApprovalScreen()));
             }),
             _tile(context, Icons.sell_rounded, 'Layanan & Harga', () {
               Navigator.of(context).push(
@@ -143,6 +150,10 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
 
             const SizedBox(height: 12),
             const SectionHeader(title: 'INFORMASI OPERASIONAL'),
+            _tile(context, Icons.cloud_sync_rounded, 'Antrean Sinkronisasi Kasir', () {
+              Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => const SyncQueueScreen()));
+            }),
             _tile(context, Icons.storefront_outlined, 'Informasi Cabang & Shift', () {
               _showOutletInfoDialog(context);
             }),
@@ -161,7 +172,36 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
             ),
           ],
 
-          // 5. TOMBOL KELUAR & VERSI APLIKASI
+          // 5. MENU ROLE KURIR (ANTAR-JEMPUT)
+          if (user.isCourier) ...[
+            const SectionHeader(title: 'AKUN & PROFIL KURIR'),
+            _tile(context, Icons.person_outline_rounded, 'Ubah data profil', () {
+              _showEditProfileDialog(context, user);
+            }),
+            _tile(context, Icons.lock_outline_rounded, 'Ubah kata sandi', () {
+              _showChangePasswordDialog(context);
+            }),
+
+            const SizedBox(height: 12),
+            const SectionHeader(title: 'OPERASIONAL KURIR'),
+            _tile(context, Icons.two_wheeler_rounded, 'Informasi Armada & Wilayah', () {
+              _showCourierVehicleDialog(context);
+            }),
+            _tile(context, Icons.menu_book_rounded, 'SOP Antar-Jemput Cucian', () {
+              _showCourierSopDialog(context);
+            }),
+
+            const SizedBox(height: 12),
+            const SectionHeader(title: 'NOTIFIKASI PENGIRIMAN'),
+            _switchTile(
+              title: 'Notifikasi penjemputan baru',
+              subtitle: 'Pemberitahuan saat ada pesanan jemput cucian',
+              value: _notifStaffTask,
+              onChanged: (val) => setState(() => _notifStaffTask = val),
+            ),
+          ],
+
+          // 6. TOMBOL KELUAR & VERSI APLIKASI
           const SizedBox(height: 28),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1011,6 +1051,90 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
               color: AppColors.textSecondary,
               height: 1.35,
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------- Courier Dialogs
+  void _showCourierVehicleDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.two_wheeler_rounded, color: AppColors.primary),
+            const SizedBox(width: 8),
+            Text(
+              'Informasi Armada & Rute',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _infoRow('Kendaraan', 'Sepeda Motor (Honda Vario 160)'),
+            _infoRow('Plat Nomor', 'DK 4821 AX'),
+            _infoRow('Cabang Tugas', 'Cabang Utama (Denpasar)'),
+            _infoRow('Radius Maksimal', '10 km dari outlet cabang'),
+            _infoRow('Kapasitas Angkut', 'Hingga 25 kg cucian / 4 keranjang'),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Tutup'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCourierSopDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.menu_book_rounded, color: AppColors.primary),
+            const SizedBox(width: 8),
+            Text(
+              'SOP Kurir LaundryKu',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _sopItem('1. Konfirmasi Penjemputan',
+                    'Hubungi pelanggan via WhatsApp/telepon sebelum berangkat ke alamat penjemputan.'),
+                _sopItem('2. Cek Kondisi Pakaian Awal',
+                    'Pastikan kantong cucian diikat rapi dan nota digital terpasang.'),
+                _sopItem('3. Pindai QR Nota',
+                    'Pindai barcode nota saat menerima cucian atau saat menyerahkan paket selesai.'),
+                _sopItem('4. Keselamatan & Kendaraan',
+                    'Gunakan helm standar, box anti-air/hujan, dan patuhi rambu lalu lintas.'),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Saya Paham'),
           ),
         ],
       ),

@@ -86,14 +86,27 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final user = ref.read(authProvider).user;
-      if (user != null && user.isCustomer && user.customerId != null) {
+      if (user != null && user.isCustomer) {
+        // Auto-isi customer dari sesi login; customerId bisa null pada akun baru
+        // sebelum backend berhasil membuat profil Customer — backend akan auto-create saat POST /orders
         setState(() {
-          _customer = CustomerModel(
-            id: user.customerId!,
-            name: user.name,
-            phone: user.phone,
-            pointBalance: user.pointBalance,
-          );
+          if (user.customerId != null) {
+            _customer = CustomerModel(
+              id: user.customerId!,
+              name: user.name,
+              phone: user.phone,
+              pointBalance: user.pointBalance,
+            );
+          } else {
+            // Tandai bahwa ini pelanggan sendiri agar validasi lokal tidak terhalang;
+            // backend OrderController akan resolve customer_id dari token
+            _customer = CustomerModel(
+              id: 0, // placeholder; OrderController meresolve dari token
+              name: user.name,
+              phone: user.phone,
+              pointBalance: user.pointBalance,
+            );
+          }
           _address = (user.address != null && user.address!.trim().isNotEmpty)
               ? user.address!
               : 'Jl. Melati No. 12, Denpasar';
@@ -362,9 +375,9 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
   Future<void> _save() async {
     if (_customer == null) {
       final user = ref.read(authProvider).user;
-      if (user != null && user.isCustomer && user.customerId != null) {
+      if (user != null && user.isCustomer) {
         _customer = CustomerModel(
-          id: user.customerId!,
+          id: user.customerId ?? 0,
           name: user.name,
           phone: user.phone,
           pointBalance: user.pointBalance,
@@ -712,7 +725,7 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
                       if (_selectedCategory == 'Kiloan') {
                         if (_kiloanWeight > 1.0) {
                           setState(() {
-                            _kiloanWeight = (_kiloanWeight - 0.5 * 10).roundToDouble() / 10;
+                            _kiloanWeight = ((_kiloanWeight - 0.5) * 10).roundToDouble() / 10;
                             if (_kiloanWeight < 1.0) _kiloanWeight = 1.0;
                             _syncKiloanDraft(services);
                           });
@@ -750,7 +763,7 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
                     onTap: () {
                       if (_selectedCategory == 'Kiloan') {
                         setState(() {
-                          _kiloanWeight = (_kiloanWeight + 0.5 * 10).roundToDouble() / 10;
+                          _kiloanWeight = ((_kiloanWeight + 0.5) * 10).roundToDouble() / 10;
                           _syncKiloanDraft(services);
                         });
                       } else if (_items.isNotEmpty) {

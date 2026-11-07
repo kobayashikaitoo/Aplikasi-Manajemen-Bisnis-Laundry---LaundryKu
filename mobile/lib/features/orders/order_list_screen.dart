@@ -6,6 +6,8 @@ import '../../core/widgets/ui_kit.dart';
 import '../auth/auth_controller.dart';
 import 'orders_providers.dart';
 import 'order_detail_screen.dart';
+import 'sync_queue_provider.dart';
+import 'sync_queue_screen.dart';
 
 class OrderListScreen extends ConsumerStatefulWidget {
   const OrderListScreen({super.key});
@@ -29,11 +31,37 @@ class _OrderListScreenState extends ConsumerState<OrderListScreen> {
     final filter = ref.watch(ordersFilterProvider);
     final ordersAsync = ref.watch(ordersListProvider);
 
-    final statuses = <String>['', ...kOrderStatusFlow];
-    if (!isCustomer) statuses.insert(1, 'Tidak Diambil');
+    final statuses = <String>['', ...kOrderStatusFlow, 'Tidak Diambil', 'Dibatalkan'];
 
-    return Column(
-      children: [
+    final syncQueue = ref.watch(syncQueueProvider);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Pesanan'),
+        actions: [
+          if (!isCustomer)
+            IconButton(
+              tooltip: 'Antrean Sinkronisasi Kasir',
+              icon: Badge(
+                isLabelVisible: syncQueue.pendingCount > 0,
+                label: Text('${syncQueue.pendingCount}'),
+                backgroundColor: AppColors.warning,
+                child: const Icon(Icons.cloud_sync_rounded),
+              ),
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const SyncQueueScreen()),
+                );
+              },
+            ),
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            onPressed: () => ref.invalidate(ordersListProvider),
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
           child: TextField(
@@ -169,6 +197,7 @@ class _OrderListScreenState extends ConsumerState<OrderListScreen> {
           ),
         ),
       ],
+      ),
     );
   }
 }

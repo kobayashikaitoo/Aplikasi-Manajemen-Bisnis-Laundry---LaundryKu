@@ -187,4 +187,88 @@ class LaundryRepository {
     }
     return ClaimModel.fromJson(res);
   }
+
+  // ---- Deliveries / Kurir ----
+  Future<List<DeliveryModel>> fetchDeliveries({String? type, String? status}) async {
+    final query = <String, dynamic>{};
+    if (type != null && type.isNotEmpty) query['type'] = type;
+    if (status != null && status.isNotEmpty) query['status'] = status;
+
+    final res = await _api.get('/deliveries', queryParameters: query);
+    if (res is List) {
+      return res.map((e) => DeliveryModel.fromJson(e as Map<String, dynamic>)).toList();
+    }
+    return [];
+  }
+
+  Future<DeliveryModel> updateDeliveryStatus(int id, String status, {String? notes}) async {
+    final res = await _api.patch('/deliveries/$id/status', data: {
+      'status': status,
+      if (notes != null) 'notes': notes,
+    });
+    return DeliveryModel.fromJson(res as Map<String, dynamic>);
+  }
+
+  Future<DeliveryModel> createDelivery({
+    required int orderId,
+    required String type,
+    int? courierUserId,
+    int fee = 0,
+  }) async {
+    final res = await _api.post('/deliveries', data: {
+      'order_id': orderId,
+      'type': type,
+      if (courierUserId != null) 'courier_user_id': courierUserId,
+      'fee': fee,
+    });
+    return DeliveryModel.fromJson(res as Map<String, dynamic>);
+  }
+
+  // ---- Approvals (Persetujuan Owner) ----
+  Future<Map<String, dynamic>> fetchApprovals({String? status, String? type}) async {
+    final query = <String, dynamic>{};
+    if (status != null && status.isNotEmpty) query['status'] = status;
+    if (type != null && type.isNotEmpty) query['type'] = type;
+
+    final res = await _api.getRaw('/approvals', queryParameters: query);
+    final data = res.data;
+    if (data is Map<String, dynamic>) {
+      final list = (data['data'] as List? ?? [])
+          .map((e) => ApprovalModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+      final meta = data['meta'] as Map<String, dynamic>? ?? {};
+      return {
+        'items': list,
+        'meta': meta,
+      };
+    }
+    return {'items': <ApprovalModel>[], 'meta': {}};
+  }
+
+  Future<void> approveRequest(int id, {String? notes, int? refundAmount}) async {
+    await _api.post('/approvals/$id/approve', data: {
+      if (notes != null) 'notes': notes,
+      if (refundAmount != null) 'refund_amount': refundAmount,
+    });
+  }
+
+  Future<void> rejectRequest(int id, {required String reason}) async {
+    await _api.post('/approvals/$id/reject', data: {
+      'reason': reason,
+    });
+  }
+
+  // ---- Sync (Antrean Sinkronisasi Kasir) ----
+  Future<Map<String, dynamic>> fetchSyncStatus() async {
+    final res = await _api.getRaw('/sync/status');
+    if (res.data is Map<String, dynamic>) {
+      return res.data as Map<String, dynamic>;
+    }
+    return {'status': 'online', 'message': 'OK'};
+  }
+
+  Future<Map<String, dynamic>> batchSync(List<Map<String, dynamic>> items) async {
+    final res = await _api.post('/sync/batch', data: {'items': items});
+    return res is Map<String, dynamic> ? res : {};
+  }
 }

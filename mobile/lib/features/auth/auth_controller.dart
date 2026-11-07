@@ -101,7 +101,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         final user = UserModel.fromJson(jsonDecode(userJson));
         state = state.copyWith(user: user, isLoading: false);
         // Refresh from server in background
-        _refreshUser();
+        refreshUser();
         return;
       } catch (_) {}
     }
@@ -109,7 +109,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(isLoading: false);
   }
 
-  Future<void> _refreshUser() async {
+  Future<void> refreshUser() async {
     try {
       final res = await _api.get('/auth/me');
       final user = UserModel.fromJson(res);

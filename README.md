@@ -8,10 +8,19 @@ Dibuat untuk tugas mata kuliah Pemrograman Mobile (Semester 5).
 
 ## Fitur Aplikasi
 
-- **Login 3 Role**:
-  - **Pemilik**: Akses dashboard omzet, kelola tarif layanan, buat & atur akun kasir, cek arus kas, dan pantau log aktivitas.
-  - **Pegawai (Kasir)**: Input pesanan cucian, upload foto kondisi awal pakaian, update status proses cuci, proses pembayaran kasir, dan scan barcode/QR nota.
-  - **Pelanggan**: Cek status pesanan secara real-time, lihat nota digital/QR, pantau & tukar poin reward, serta atur alamat penjemputan.
+- **Login 4 Role**:
+  - **Pemilik (Owner)**: Akses dashboard omzet, halaman persetujuan & otorisasi (diskon khusus, pembatalan order, klaim komplain garansi), kelola tarif layanan, buat & atur akun kasir serta kurir, cek arus kas, dan pantau log aktivitas.
+  - **Pegawai (Kasir)**: Input pesanan cucian, halaman antrean sinkronisasi (sync queue untuk mode offline/online), upload foto kondisi awal pakaian, update status proses cuci, proses pembayaran kasir, dan scan barcode/QR nota.
+  - **Kurir Antar-Jemput**: Akses khusus tugas pengantaran & penjemputan cucian pelanggan, tombol kontak WA & rute maps, update status perjalanan (Jemput/Antar), serta pemindai barcode nota serah terima.
+  - **Pelanggan**: Cek status pesanan secara real-time, ajukan metode jemput-antar dan klaim garansi, lihat nota digital/QR, pantau & tukar poin reward, serta atur alamat penjemputan.
+- **Halaman Antrean Sinkronisasi (Role Kasir)**:
+  - Indikator koneksi server real-time (Online/Offline) dan latensi API.
+  - Ringkasan antrean (Tertunda, Tersinkron, Gagal) dengan tombol sinkronisasi batch instan.
+  - Fitur simulasi transaksi offline dan inspeksi payload JSON setiap operasi.
+- **Halaman Persetujuan & Otorisasi (Role Pemilik)**:
+  - Review dan persetujuan klaim kerusakan/kehilangan pakaian dari pelanggan.
+  - Otorisasi diskon khusus (> 10%) dan persetujuan pembatalan order dari kasir.
+  - Dialog konfirmasi interaktif dengan catatan persetujuan dan nominal kompensasi ganti rugi.
 - **Alur Status Cucian**:
   - Diterima → Ditimbang → Dicuci → Disetrika → Siap Diambil → Selesai.
   - *Catatan:* Cucian wajib difoto terlebih dahulu sebelum masuk proses timbang untuk bukti kondisi pakaian awal pelanggan.
@@ -86,6 +95,7 @@ Semua akun dummy default menggunakan password: **`password`**
 | **Pemilik** | `owner@laundryku.com` | `password` | Login pemilik toko (akses full dashboard & kelola staf) |
 | **Kasir 1** | `kasir1@laundryku.com` | `password` | Akun kasir cabang utama |
 | **Kasir 2** | `kasir2@laundryku.com` | `password` | Akun kasir cabang kedua |
+| **Kurir** | `kurir@laundryku.com` | `password` | Akun kurir tugas jemput-antar |
 | **Pelanggan** | `budi@gmail.com` | `password` | Akun contoh pelanggan aktif |
 | **Pelanggan** | `siti@gmail.com` | `password` | Akun contoh pelanggan aktif |
 

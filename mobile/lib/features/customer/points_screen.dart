@@ -17,8 +17,26 @@ class PointsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authProvider).user;
     if (user == null || user.customerId == null) {
-      return const Scaffold(
-        body: EmptyView(message: 'Data pelanggan tidak tersedia.'),
+      return Scaffold(
+        appBar: AppBar(title: const Text('Poin Member')),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.star_border_rounded, size: 56, color: AppColors.textMuted),
+                const SizedBox(height: 12),
+                const Text('Data profil pelanggan sedang dimuat...'),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () => ref.read(authProvider.notifier).refreshUser(),
+                  child: const Text('Muat Ulang'),
+                ),
+              ],
+            ),
+          ),
+        ),
       );
     }
     final pointsAsync = ref.watch(pointsProvider(user.customerId!));

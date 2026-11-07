@@ -454,6 +454,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           children: [
                             _demoChip('Pelanggan (Budi)', 'budi@gmail.com'),
                             _demoChip('Kasir / Pegawai', 'kasir1@laundryku.com'),
+                            _demoChip('Kurir (Bambang)', 'kurir@laundryku.com'),
                             _demoChip('Pemilik (Owner)', 'owner@laundryku.com'),
                           ],
                         ),

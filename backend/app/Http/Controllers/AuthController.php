@@ -48,6 +48,21 @@ class AuthController extends Controller
             ], 403);
         }
 
+        if ($user->isCustomer() && !$user->customer) {
+            $count = Customer::count() + 1;
+            $customerCode = 'CUST-' . str_pad((string)$count, 3, '0', STR_PAD_LEFT);
+            $customer = Customer::create([
+                'code' => $customerCode,
+                'user_id' => $user->id,
+                'branch_id' => $user->branch_id ?? Branch::first()?->id ?? 1,
+                'name' => $user->name,
+                'phone' => $user->phone ?? '',
+                'address' => '',
+                'point_balance' => 0,
+            ]);
+            $user->setRelation('customer', $customer);
+        }
+
         $token = $this->jwtService->generateToken($user);
 
         return response()->json([
@@ -70,6 +85,21 @@ class AuthController extends Controller
     public function me(Request $request): JsonResponse
     {
         $user = $request->user()->load(['role', 'branch', 'customer']);
+
+        if ($user->isCustomer() && !$user->customer) {
+            $count = Customer::count() + 1;
+            $customerCode = 'CUST-' . str_pad((string)$count, 3, '0', STR_PAD_LEFT);
+            $customer = Customer::create([
+                'code' => $customerCode,
+                'user_id' => $user->id,
+                'branch_id' => $user->branch_id ?? Branch::first()?->id ?? 1,
+                'name' => $user->name,
+                'phone' => $user->phone ?? '',
+                'address' => '',
+                'point_balance' => 0,
+            ]);
+            $user->setRelation('customer', $customer);
+        }
 
         return response()->json([
             'data' => [
@@ -206,9 +236,6 @@ class AuthController extends Controller
         if (!$role) {
             $role = Role::create(['name' => 'pelanggan', 'guard_name' => 'api']);
         }
-
-        // Bersihkan role kurir jika sebelumnya sempat dibuat
-        Role::where('name', 'kurir')->delete();
 
         $branch = Branch::where('is_active', true)->first() ?? Branch::first();
 

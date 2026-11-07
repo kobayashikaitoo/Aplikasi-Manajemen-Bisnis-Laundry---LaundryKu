@@ -28,7 +28,7 @@ class OrderController extends Controller
 
         // RBAC: Pelanggan hanya boleh membaca order miliknya sendiri
         if ($user->isCustomer()) {
-            $customerId = $user->customer?->id;
+            $customerId = $user->customer?->id ?? \App\Models\Customer::where('user_id', $user->id)->value('id');
             $query->where('customer_id', $customerId);
         } elseif ($user->branch_id) {
             $query->where('branch_id', $user->branch_id);
@@ -64,6 +64,28 @@ class OrderController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $user = $request->user();
+
+        // RBAC / Auto-assign customer_id jika yang membuat adalah Pelanggan
+        if ($user->isCustomer()) {
+            $customer = $user->customer;
+            if (!$customer) {
+                $count = \App\Models\Customer::count() + 1;
+                $customerCode = 'CUST-' . str_pad((string)$count, 3, '0', STR_PAD_LEFT);
+                $customer = \App\Models\Customer::create([
+                    'code' => $customerCode,
+                    'user_id' => $user->id,
+                    'branch_id' => $user->branch_id ?? 1,
+                    'name' => $user->name,
+                    'phone' => $user->phone ?? '',
+                    'address' => '',
+                    'point_balance' => 0,
+                ]);
+                $user->setRelation('customer', $customer);
+            }
+            $request->merge(['customer_id' => $customer->id]);
+        }
+
         $request->validate([
             'customer_id' => 'required|exists:customers,id',
             'items' => 'required|array|min:1',
@@ -73,7 +95,16 @@ class OrderController extends Controller
             'notes' => 'nullable|string',
         ]);
 
-        $user = $request->user();
+        $resolvedCustomerId = (int)($customer?->id ?? $user->customer?->id ?? \App\Models\Customer::where('user_id', $user->id)->value('id'));
+        if ($user->isCustomer() && (int)$request->customer_id !== $resolvedCustomerId) {
+            return response()->json([
+                'error' => [
+                    'code' => 'FORBIDDEN',
+                    'message' => 'Pelanggan hanya dapat membuat order untuk akun miliknya sendiri.',
+                ]
+            ], 403);
+        }
+
         $idempotencyKey = $request->header('Idempotency-Key');
 
         // Idempotency check if order exists with this key
@@ -96,6 +127,18 @@ class OrderController extends Controller
             $user,
             $idempotencyKey
         );
+
+        // Jika pesanan mencantumkan metode Jemput & Antar, buat penugasan pengiriman (Delivery task)
+        if ($request->has('notes') && (str_contains($request->notes, 'Jemput & Antar') || str_contains($request->notes, 'jemput'))) {
+            \App\Models\Delivery::create([
+                'order_id' => $order->id,
+                'courier_user_id' => null,
+                'type' => 'pickup',
+                'status' => 'pending',
+                'scheduled_at' => now()->addHours(2),
+                'fee' => 10000,
+            ]);
+        }
 
         if ($idempotencyKey) {
             cache()->put("order_idempotency_{$idempotencyKey}", $order->id, now()->addHours(24));
@@ -121,13 +164,16 @@ class OrderController extends Controller
         ])->findOrFail($id);
 
         // RBAC check
-        if ($user->isCustomer() && $order->customer_id !== $user->customer?->id) {
-            return response()->json([
-                'error' => [
-                    'code' => 'FORBIDDEN',
-                    'message' => 'Anda tidak memiliki hak akses untuk melihat order ini.',
-                ]
-            ], 403);
+        if ($user->isCustomer()) {
+            $userCustomerId = $user->customer?->id ?? \App\Models\Customer::where('user_id', $user->id)->value('id');
+            if ($order->customer_id !== $userCustomerId) {
+                return response()->json([
+                    'error' => [
+                        'code' => 'FORBIDDEN',
+                        'message' => 'Anda tidak memiliki hak akses untuk melihat order ini.',
+                    ]
+                ], 403);
+            }
         }
 
         return response()->json([
@@ -140,13 +186,16 @@ class OrderController extends Controller
         $user = $request->user();
         $order = Order::findOrFail($id);
 
-        if ($user->isCustomer() && $order->customer_id !== $user->customer?->id) {
-            return response()->json([
-                'error' => [
-                    'code' => 'FORBIDDEN',
-                    'message' => 'Anda tidak memiliki hak akses untuk melihat linimasa order ini.',
-                ]
-            ], 403);
+        if ($user->isCustomer()) {
+            $userCustomerId = $user->customer?->id ?? \App\Models\Customer::where('user_id', $user->id)->value('id');
+            if ($order->customer_id !== $userCustomerId) {
+                return response()->json([
+                    'error' => [
+                        'code' => 'FORBIDDEN',
+                        'message' => 'Anda tidak memiliki hak akses untuk melihat linimasa order ini.',
+                    ]
+                ], 403);
+            }
         }
 
         $logs = $order->statusLogs()
@@ -162,13 +211,25 @@ class OrderController extends Controller
     public function uploadPhoto(Request $request, int $id): JsonResponse
     {
         $order = Order::findOrFail($id);
+        $user = $request->user();
+
+        // RBAC check: customer can only upload photo for their own order
+        if ($user->isCustomer()) {
+            $userCustomerId = $user->customer?->id ?? \App\Models\Customer::where('user_id', $user->id)->value('id');
+            if ($order->customer_id !== $userCustomerId) {
+                return response()->json([
+                    'error' => [
+                        'code' => 'FORBIDDEN',
+                        'message' => 'Anda tidak memiliki hak akses untuk mengunggah foto pada order ini.',
+                    ]
+                ], 403);
+            }
+        }
 
         $request->validate([
             'photo' => 'required',
             'photo_type' => 'nullable|string|in:initial,progress,completed',
         ]);
-
-        $user = $request->user();
         $photoType = $request->photo_type ?? 'initial';
 
         // Support both multipart file upload and base64 string

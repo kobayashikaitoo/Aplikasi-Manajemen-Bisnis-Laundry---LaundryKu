@@ -7,6 +7,7 @@ import '../../core/utils/currency_formatter.dart';
 import '../../core/widgets/ui_kit.dart';
 import '../auth/account_screen.dart';
 import '../auth/auth_controller.dart';
+import '../courier/courier_home_screen.dart';
 import '../customer/notifications_screen.dart';
 import '../customer/points_screen.dart';
 import '../dashboard/dashboard_screen.dart';
@@ -60,6 +61,29 @@ class _AppShellState extends ConsumerState<AppShell> {
           icon: Icon(Icons.star_outline_rounded),
           selectedIcon: Icon(Icons.star_rounded),
           label: 'Poin',
+        ),
+        NavigationDestination(
+          icon: Icon(Icons.person_outline_rounded),
+          selectedIcon: Icon(Icons.person_rounded),
+          label: 'Akun',
+        ),
+      ];
+    } else if (user.isCourier) {
+      pages = const [
+        CourierHomeScreen(),
+        ScanScreen(),
+        AccountScreen(),
+      ];
+      nav = const [
+        NavigationDestination(
+          icon: Icon(Icons.two_wheeler_outlined),
+          selectedIcon: Icon(Icons.two_wheeler_rounded),
+          label: 'Tugas',
+        ),
+        NavigationDestination(
+          icon: Icon(Icons.qr_code_scanner_rounded),
+          selectedIcon: Icon(Icons.qr_code_scanner_rounded),
+          label: 'Pindai',
         ),
         NavigationDestination(
           icon: Icon(Icons.person_outline_rounded),

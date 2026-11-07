@@ -16,7 +16,7 @@ class StaffController extends Controller
         
         $staff = User::with('role')
             ->whereHas('role', function ($q) {
-                $q->where('name', 'pegawai');
+                $q->whereIn('name', ['pegawai', 'kurir']);
             })
             ->when($currentUser->branch_id, function ($q, $branchId) {
                 $q->where('branch_id', $branchId);
@@ -47,13 +47,15 @@ class StaffController extends Controller
             'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:8',
             'phone' => 'nullable|string|max:30',
+            'role' => 'nullable|string|in:pegawai,kurir',
         ]);
 
         $currentUser = $request->user();
-        $rolePegawai = Role::firstOrCreate(['name' => 'pegawai'], ['guard_name' => 'api']);
+        $targetRoleName = $request->input('role', 'pegawai');
+        $targetRole = Role::firstOrCreate(['name' => $targetRoleName], ['guard_name' => 'api']);
 
         $user = User::create([
-            'role_id' => $rolePegawai->id,
+            'role_id' => $targetRole->id,
             'branch_id' => $currentUser->branch_id,
             'name' => $request->name,
             'email' => $request->email,
@@ -70,7 +72,7 @@ class StaffController extends Controller
             'new_values' => [
                 'name' => $user->name,
                 'email' => $user->email,
-                'role' => 'pegawai',
+                'role' => $targetRoleName,
             ],
             'ip_address' => $request->ip(),
         ]);
@@ -81,7 +83,7 @@ class StaffController extends Controller
                 'name' => $user->name,
                 'email' => $user->email,
                 'phone' => $user->phone,
-                'role' => 'pegawai',
+                'role' => $targetRoleName,
                 'branch_id' => $user->branch_id,
                 'is_active' => (bool)$user->is_active,
                 'created_at' => $user->created_at?->toIso8601String(),
@@ -93,7 +95,7 @@ class StaffController extends Controller
     {
         $currentUser = $request->user();
         $user = User::whereHas('role', function ($q) {
-            $q->where('name', 'pegawai');
+            $q->whereIn('name', ['pegawai', 'kurir']);
         })->findOrFail($id);
 
         $oldStatus = $user->is_active;

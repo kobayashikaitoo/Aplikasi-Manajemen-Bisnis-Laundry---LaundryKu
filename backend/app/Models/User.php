@@ -18,4 +18,5 @@ class User extends Authenticatable {
     public function isOwner(): bool { return $this->role?->name === 'pemilik'; }
     public function isStaff(): bool { return $this->role?->name === 'pegawai'; }
     public function isCustomer(): bool { return $this->role?->name === 'pelanggan'; }
+    public function isCourier(): bool { return $this->role?->name === 'kurir'; }
 }

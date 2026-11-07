@@ -55,7 +55,10 @@ class OrderDetailScreen extends ConsumerWidget {
               _NotaCard(order: order),
               _ItemsCard(order: order),
               if (isStaff) _CustomerCard(order: order),
-              _PhotosCard(order: order, canUpload: isStaff),
+              _PhotosCard(
+                order: order,
+                canUpload: isStaff || (user != null && user.isCustomer && order.status == 'Diterima'),
+              ),
               _TimelineCard(order: order),
               if (order.payments.isNotEmpty) _PaymentsCard(order: order),
               if (isStaff) _ActionsCard(order: order, isOwner: user.isOwner),
@@ -262,9 +265,33 @@ class _PhotosCardState extends ConsumerState<_PhotosCard> {
   bool _uploading = false;
 
   Future<void> _takePhoto() async {
+    // Staf bisa memilih kamera atau galeri (berguna di emulator / perangkat tanpa kamera aktif)
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (ctx) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera_rounded, color: AppColors.primary),
+              title: const Text('Ambil dari Kamera'),
+              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_rounded, color: AppColors.primary),
+              title: const Text('Pilih dari Galeri'),
+              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null) return;
+
     final picker = ImagePicker();
     final file = await picker.pickImage(
-        source: ImageSource.camera, maxWidth: 1280, imageQuality: 70);
+        source: source, maxWidth: 1280, imageQuality: 70);
     if (file == null) return;
     setState(() => _uploading = true);
     try {
@@ -279,7 +306,8 @@ class _PhotosCardState extends ConsumerState<_PhotosCard> {
       if (mounted) showSnack(context, e.message, isError: true);
     } catch (_) {
       if (mounted) {
-        showSnack(context, 'Tidak dapat mengakses kamera. Gunakan input manual bila perlu.',
+        showSnack(context,
+            'Tidak dapat mengakses ${source == ImageSource.camera ? "kamera" : "galeri"}.',
             isError: true);
       }
     } finally {
@@ -765,12 +793,7 @@ class _ActionsCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final next = kAllowedTransitions[order.status] ?? [];
-    final canPay = order.remainingBalance > 0 &&
-        !order.isClosed &&
-        order.status != 'Diterima' &&
-        order.status != 'Ditimbang' &&
-        order.status != 'Dicuci' &&
-        order.status != 'Disetrika';
+    final canPay = order.remainingBalance > 0 && !order.isClosed;
     final showDibatalkan = isOwner; // pegawai butuh persetujuan pemilik
 
     return SectionCard(
@@ -824,6 +847,13 @@ class _ActionsCard extends ConsumerWidget {
 
   Future<void> _onTransition(
       BuildContext context, WidgetRef ref, String target) async {
+    // Bug Fix: Jika kasir memilih transisi → Lunas tetapi masih ada sisa tagihan,
+    // alihkan ke form pembayaran agar kas & poin tercatat secara atomik (P-09, BR-08).
+    if (target == 'Lunas' && order.remainingBalance > 0) {
+      showPaymentSheet(context, ref, order);
+      return;
+    }
+
     String? reason;
     if (target == 'Siap') {
       final confirmed = await showDialog<bool>(

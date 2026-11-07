@@ -1,16 +1,19 @@
 <?php
 
+use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CashTransactionController;
 use App\Http\Controllers\ClaimController;
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\DeliveryController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\StaffController;
+use App\Http\Controllers\SyncController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -48,12 +51,33 @@ Route::middleware(['auth.jwt'])->group(function () {
     Route::get('/orders', [OrderController::class, 'index']);
     Route::get('/orders/{id}', [OrderController::class, 'show']);
     Route::get('/orders/{id}/timeline', [OrderController::class, 'timeline']);
+    Route::post('/orders', [OrderController::class, 'store'])->middleware(['role:pelanggan,pegawai,pemilik']);
+    Route::post('/orders/{id}/photos', [OrderController::class, 'uploadPhoto'])->middleware(['role:pelanggan,pegawai,pemilik,kurir']);
+
+    Route::middleware(['role:pegawai,pemilik,kurir'])->group(function () {
+        Route::patch('/orders/{id}/status', [OrderController::class, 'updateStatus']);
+    });
 
     Route::middleware(['role:pegawai,pemilik'])->group(function () {
-        Route::post('/orders', [OrderController::class, 'store']);
-        Route::post('/orders/{id}/photos', [OrderController::class, 'uploadPhoto']);
-        Route::patch('/orders/{id}/status', [OrderController::class, 'updateStatus']);
         Route::post('/orders/{id}/payments', [PaymentController::class, 'store']);
+    });
+
+    // Sync Queue (Kasir & Staf)
+    Route::get('/sync/status', [SyncController::class, 'status']);
+    Route::post('/sync/batch', [SyncController::class, 'batchSync'])->middleware(['role:pegawai,pemilik']);
+
+    // Approvals (Pemilik only)
+    Route::middleware(['role:pemilik'])->group(function () {
+        Route::get('/approvals', [ApprovalController::class, 'index']);
+        Route::post('/approvals/{id}/approve', [ApprovalController::class, 'approve']);
+        Route::post('/approvals/{id}/reject', [ApprovalController::class, 'reject']);
+    });
+
+    // Deliveries & Penjemputan (Kurir, Pegawai, Pemilik, Pelanggan)
+    Route::get('/deliveries', [DeliveryController::class, 'index']);
+    Route::middleware(['role:kurir,pegawai,pemilik'])->group(function () {
+        Route::post('/deliveries', [DeliveryController::class, 'store']);
+        Route::patch('/deliveries/{id}/status', [DeliveryController::class, 'updateStatus']);
     });
 
     // Cash Transactions / Expenses (Pemilik only)

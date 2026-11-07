@@ -57,12 +57,14 @@ class StaffNotifier extends StateNotifier<AsyncValue<List<StaffModel>>> {
     required String email,
     required String password,
     String? phone,
+    String role = 'pegawai',
   }) async {
     try {
       await _api.post('/staff', data: {
         'name': name,
         'email': email,
         'password': password,
+        'role': role,
         if (phone != null && phone.isNotEmpty) 'phone': phone,
       });
       await fetchStaff();

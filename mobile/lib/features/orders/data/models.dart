@@ -476,3 +476,192 @@ class PointsModel {
             .toList(),
       );
 }
+
+
+class DeliveryModel {
+  final int id;
+  final int orderId;
+  final int? courierUserId;
+  final String type; // 'pickup' or 'delivery'
+  final String status; // 'pending', 'assigned', 'on_the_way', 'completed', 'cancelled'
+  final DateTime? scheduledAt;
+  final DateTime? completedAt;
+  final int fee;
+  final OrderModel? order;
+
+  const DeliveryModel({
+    required this.id,
+    required this.orderId,
+    this.courierUserId,
+    required this.type,
+    required this.status,
+    this.scheduledAt,
+    this.completedAt,
+    required this.fee,
+    this.order,
+  });
+
+  bool get isPickup => type.toLowerCase() == 'pickup';
+  bool get isDelivery => type.toLowerCase() == 'delivery';
+  bool get isCompleted => status == 'completed';
+  bool get isOnTheWay => status == 'on_the_way';
+  bool get isPending => status == 'pending';
+
+  factory DeliveryModel.fromJson(Map<String, dynamic> json) => DeliveryModel(
+        id: (json['id'] ?? 0).toInt(),
+        orderId: (json['order_id'] ?? 0).toInt(),
+        courierUserId: json['courier_user_id'] != null
+            ? (json['courier_user_id'] as num).toInt()
+            : null,
+        type: json['type'] ?? 'delivery',
+        status: json['status'] ?? 'pending',
+        scheduledAt: json['scheduled_at'] != null
+            ? DateTime.tryParse(json['scheduled_at'])
+            : null,
+        completedAt: json['completed_at'] != null
+            ? DateTime.tryParse(json['completed_at'])
+            : null,
+        fee: (json['fee'] ?? 0).toInt(),
+        order: json['order'] != null ? OrderModel.fromJson(json['order']) : null,
+      );
+}
+
+class ApprovalModel {
+  final int id;
+  final String sourceType; // 'claim', 'cancel', 'discount'
+  final String title;
+  final String categoryLabel;
+  final int orderId;
+  final String orderNo;
+  final String customerName;
+  final String requesterName;
+  final String description;
+  final int amount;
+  final String amountLabel;
+  final String status; // 'pending', 'approved', 'rejected'
+  final String statusRaw;
+  final String? notes;
+  final String? createdAt;
+  final List<String> photos;
+
+  const ApprovalModel({
+    required this.id,
+    required this.sourceType,
+    required this.title,
+    required this.categoryLabel,
+    required this.orderId,
+    required this.orderNo,
+    required this.customerName,
+    required this.requesterName,
+    required this.description,
+    required this.amount,
+    required this.amountLabel,
+    required this.status,
+    required this.statusRaw,
+    this.notes,
+    this.createdAt,
+    this.photos = const [],
+  });
+
+  bool get isPending => status == 'pending';
+  bool get isApproved => status == 'approved';
+  bool get isRejected => status == 'rejected';
+
+  factory ApprovalModel.fromJson(Map<String, dynamic> json) => ApprovalModel(
+        id: (json['id'] ?? 0).toInt(),
+        sourceType: json['source_type'] ?? 'claim',
+        title: json['title'] ?? '',
+        categoryLabel: json['category_label'] ?? 'Persetujuan',
+        orderId: (json['order_id'] ?? 0).toInt(),
+        orderNo: json['order_no'] ?? '',
+        customerName: json['customer_name'] ?? '',
+        requesterName: json['requester_name'] ?? '',
+        description: json['description'] ?? '',
+        amount: (json['amount'] ?? 0).toInt(),
+        amountLabel: json['amount_label'] ?? 'Nilai',
+        status: json['status'] ?? 'pending',
+        statusRaw: json['status_raw'] ?? '',
+        notes: json['notes'],
+        createdAt: json['created_at'],
+        photos: ((json['photos'] ?? []) as List).map((e) => e.toString()).toList(),
+      );
+}
+
+class SyncQueueItem {
+  final String id;
+  final String actionType; // 'CREATE_ORDER', 'PAYMENT', 'UPDATE_STATUS', 'UPLOAD_PHOTO'
+  final String title;
+  final String orderNo;
+  final String customerName;
+  final int amount;
+  final String status; // 'pending', 'synced', 'failed'
+  final DateTime queuedAt;
+  final DateTime? syncedAt;
+  final String? errorMessage;
+  final Map<String, dynamic> payload;
+
+  const SyncQueueItem({
+    required this.id,
+    required this.actionType,
+    required this.title,
+    required this.orderNo,
+    required this.customerName,
+    this.amount = 0,
+    required this.status,
+    required this.queuedAt,
+    this.syncedAt,
+    this.errorMessage,
+    required this.payload,
+  });
+
+  bool get isPending => status == 'pending';
+  bool get isSynced => status == 'synced';
+  bool get isFailed => status == 'failed';
+
+  SyncQueueItem copyWith({
+    String? status,
+    DateTime? syncedAt,
+    String? errorMessage,
+  }) =>
+      SyncQueueItem(
+        id: id,
+        actionType: actionType,
+        title: title,
+        orderNo: orderNo,
+        customerName: customerName,
+        amount: amount,
+        status: status ?? this.status,
+        queuedAt: queuedAt,
+        syncedAt: syncedAt ?? this.syncedAt,
+        errorMessage: errorMessage ?? this.errorMessage,
+        payload: payload,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'action_type': actionType,
+        'title': title,
+        'order_no': orderNo,
+        'customer_name': customerName,
+        'amount': amount,
+        'status': status,
+        'queued_at': queuedAt.toIso8601String(),
+        'synced_at': syncedAt?.toIso8601String(),
+        'error_message': errorMessage,
+        'payload': payload,
+      };
+
+  factory SyncQueueItem.fromJson(Map<String, dynamic> json) => SyncQueueItem(
+        id: json['id'] ?? '',
+        actionType: json['action_type'] ?? '',
+        title: json['title'] ?? '',
+        orderNo: json['order_no'] ?? '',
+        customerName: json['customer_name'] ?? '',
+        amount: (json['amount'] ?? 0).toInt(),
+        status: json['status'] ?? 'pending',
+        queuedAt: DateTime.tryParse(json['queued_at'] ?? '') ?? DateTime.now(),
+        syncedAt: json['synced_at'] != null ? DateTime.tryParse(json['synced_at']) : null,
+        errorMessage: json['error_message'],
+        payload: json['payload'] is Map ? Map<String, dynamic>.from(json['payload']) : {},
+      );
+}
