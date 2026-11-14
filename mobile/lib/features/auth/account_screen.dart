@@ -7,7 +7,6 @@ import '../../core/widgets/ui_kit.dart';
 import '../dashboard/approval_screen.dart';
 import '../dashboard/audit_log_screen.dart';
 import '../dashboard/cashflow_screen.dart';
-import '../dashboard/dashboard_screen.dart';
 import '../dashboard/services_screen.dart';
 import '../dashboard/staff_screen.dart';
 import '../orders/sync_queue_screen.dart';
@@ -60,13 +59,18 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
           _buildProfileHeader(user, roleLabel),
           const SizedBox(height: 20),
 
-          // 2. MENU PEMILIK (TETAP UTUH SESUAI ASLINYA)
+          // 2. MENU PEMILIK (AKUN, PROFIL, DAN AKSES MANAJEMEN)
           if (user.isOwner) ...[
-            const SectionHeader(title: 'Menu pemilik'),
-            _tile(context, Icons.dashboard_rounded, 'Dashboard', () {
-              Navigator.of(context).push(MaterialPageRoute(
-                  builder: (_) => const DashboardScreen()));
+            const SectionHeader(title: 'AKUN & PROFIL PEMILIK'),
+            _tile(context, Icons.person_outline_rounded, 'Ubah data profil', () {
+              _showEditProfileDialog(context, user);
             }),
+            _tile(context, Icons.lock_outline_rounded, 'Ubah kata sandi', () {
+              _showChangePasswordDialog(context);
+            }),
+
+            const SizedBox(height: 12),
+            const SectionHeader(title: 'MANAJEMEN BISNIS & OUTLET'),
             _tile(context, Icons.people_rounded, 'Kelola Pegawai / Kasir', () {
               Navigator.of(context).push(MaterialPageRoute(
                   builder: (_) => const StaffScreen()));
@@ -79,11 +83,11 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
               Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const ServicesScreen()));
             }),
-            _tile(context, Icons.swap_vert_rounded, 'Cashflow', () {
+            _tile(context, Icons.swap_vert_rounded, 'Cashflow & Arus Kas', () {
               Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const CashflowScreen()));
             }),
-            _tile(context, Icons.fact_check_rounded, 'Audit Log', () {
+            _tile(context, Icons.fact_check_rounded, 'Audit Log Aktivitas', () {
               Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const AuditLogScreen()));
             }),
@@ -945,7 +949,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
     );
   }
 
-  Widget _infoRow(String label, String value, Color valueColor) {
+  Widget _infoRow(String label, String value, [Color valueColor = AppColors.textPrimary]) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(

@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/currency_formatter.dart';
@@ -22,7 +25,406 @@ class _CourierHomeScreenState extends ConsumerState<CourierHomeScreen> {
   int _selectedTab = 0; // 0: Semua, 1: Jemput, 2: Antar, 3: Selesai
   bool _isOnlineDuty = true;
 
+  void _showContactDialog(BuildContext context, String name, String phone) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: AppColors.primaryLight,
+                  child: const Icon(Icons.person_rounded, color: AppColors.primary),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      Text(
+                        phone,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF25D366),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              icon: const Icon(Icons.chat_bubble_rounded),
+              label: Text(
+                'Salin Nomor WhatsApp ($phone)',
+                style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
+              ),
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: phone));
+                Navigator.pop(ctx);
+                showSnack(context, 'Nomor $phone berhasil disalin ke clipboard.');
+              },
+            ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              icon: const Icon(Icons.copy_rounded),
+              label: const Text('Salin Nomor Telepon'),
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: phone));
+                Navigator.pop(ctx);
+                showSnack(context, 'Nomor $phone berhasil disalin ke clipboard.');
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showRouteDialog(BuildContext context, String custName, String address, String orderNo) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: AppColors.primaryLight,
+                  child: const Icon(Icons.directions_rounded, color: AppColors.primary),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Rute Pengantaran #$orderNo',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      Text(
+                        'Pelanggan: $custName',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12.5,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.location_on_rounded, size: 20, color: AppColors.danger),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      address,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 13,
+                        color: AppColors.textPrimary,
+                        height: 1.3,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              icon: const Icon(Icons.copy_rounded),
+              label: const Text('Salin Alamat Lengkap'),
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: address));
+                Navigator.pop(ctx);
+                showSnack(context, 'Alamat pengantaran berhasil disalin ke clipboard.');
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showProofAndCompleteSheet(DeliveryModel delivery, String label) async {
+    Uint8List? imageBytes;
+    bool isSubmitting = false;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Padding(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 20,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  const CircleAvatar(
+                    backgroundColor: AppColors.successLight,
+                    child: Icon(Icons.camera_alt_rounded, color: AppColors.success),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Bukti Serah Terima Foto',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        Text(
+                          'Order #${delivery.order?.orderNo ?? delivery.orderId} · $label',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 12.5,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              if (imageBytes != null)
+                Stack(
+                  alignment: Alignment.topRight,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.memory(
+                        imageBytes!,
+                        height: 160,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const CircleAvatar(
+                        radius: 14,
+                        backgroundColor: Colors.black54,
+                        child: Icon(Icons.close_rounded, size: 16, color: Colors.white),
+                      ),
+                      onPressed: () {
+                        setSheetState(() {
+                          imageBytes = null;
+                        });
+                      },
+                    ),
+                  ],
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Column(
+                    children: [
+                      const Icon(Icons.add_a_photo_outlined, size: 36, color: AppColors.primary),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Ambil foto bukti serah terima cucian',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Unggah foto pakaian yang diterima/diserahkan sebagai bukti serah terima sah (tanpa kode OTP).',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 11.5,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            ),
+                            icon: const Icon(Icons.camera_alt_rounded, size: 16),
+                            label: const Text('Kamera'),
+                            onPressed: () async {
+                              final picker = ImagePicker();
+                              final file = await picker.pickImage(
+                                source: ImageSource.camera,
+                                maxWidth: 1280,
+                                imageQuality: 70,
+                              );
+                              if (file != null) {
+                                final bytes = await file.readAsBytes();
+                                setSheetState(() {
+                                  imageBytes = bytes;
+                                });
+                              }
+                            },
+                          ),
+                          const SizedBox(width: 10),
+                          OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            ),
+                            icon: const Icon(Icons.photo_library_rounded, size: 16),
+                            label: const Text('Galeri'),
+                            onPressed: () async {
+                              final picker = ImagePicker();
+                              final file = await picker.pickImage(
+                                source: ImageSource.gallery,
+                                maxWidth: 1280,
+                                imageQuality: 70,
+                              );
+                              if (file != null) {
+                                final bytes = await file.readAsBytes();
+                                setSheetState(() {
+                                  imageBytes = bytes;
+                                });
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              const SizedBox(height: 20),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.success,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                icon: isSubmitting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.check_circle_rounded),
+                label: Text(
+                  isSubmitting ? 'Memproses...' : 'Konfirmasi Selesai & Kirim Bukti',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                onPressed: isSubmitting
+                    ? null
+                    : () async {
+                        setSheetState(() => isSubmitting = true);
+                        String? base64Photo;
+                        if (imageBytes != null) {
+                          base64Photo = 'data:image/jpeg;base64,${base64Encode(imageBytes!)}';
+                        }
+                        final ok = await ref
+                            .read(deliveriesProvider.notifier)
+                            .updateStatus(delivery.id, 'completed', proofPhoto: base64Photo);
+                        if (mounted) {
+                          Navigator.pop(ctx);
+                          if (ok) {
+                            showSnack(context, 'Tugas $label berhasil diselesaikan beserta bukti foto.');
+                          } else {
+                            showSnack(context, 'Gagal menyelesaikan tugas.', isError: true);
+                          }
+                        }
+                      },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _updateStatus(DeliveryModel delivery, String newStatus, String label) async {
+    if (newStatus == 'completed') {
+      await _showProofAndCompleteSheet(delivery, label);
+      return;
+    }
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -549,9 +951,7 @@ class _CourierHomeScreenState extends ConsumerState<CourierHomeScreen> {
             Row(
               children: [
                 OutlinedButton.icon(
-                  onPressed: () {
-                    showSnack(context, 'Membuka kontak: $custPhone ($custName)');
-                  },
+                  onPressed: () => _showContactDialog(context, custName, custPhone),
                   icon: const Icon(Icons.phone_in_talk_rounded, size: 14),
                   label: Text(
                     'Hubungi',
@@ -565,9 +965,7 @@ class _CourierHomeScreenState extends ConsumerState<CourierHomeScreen> {
                 ),
                 const SizedBox(width: 8),
                 OutlinedButton.icon(
-                  onPressed: () {
-                    showSnack(context, 'Membuka peta navigasi ke: $address');
-                  },
+                  onPressed: () => _showRouteDialog(context, custName, address, orderNo),
                   icon: const Icon(Icons.directions_rounded, size: 14),
                   label: Text(
                     'Rute',

@@ -115,6 +115,9 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
     });
   }
 
+  bool _usePoints = false;
+  int _pointsToRedeem = 0;
+
   @override
   void dispose() {
     _discountCtrl.dispose();
@@ -122,14 +125,18 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
     super.dispose();
   }
 
+  int get _availablePoints =>
+      _customer?.pointBalance ?? (ref.read(authProvider).user?.pointBalance ?? 0);
   int get _subtotal => _items.fold(0, (sum, it) => sum + it.subtotal);
-  int get _discount {
+  int get _manualDiscount {
     final v = int.tryParse(_discountCtrl.text.trim()) ?? 0;
     return v.clamp(0, _subtotal);
   }
+  int get _pointDiscount => _usePoints ? (_pointsToRedeem * 1000) : 0;
+  int get _discount => (_manualDiscount + _pointDiscount).clamp(0, _subtotal);
 
   int get _total => (_subtotal - _discount).clamp(0, _subtotal);
-  double get _discountPercent => _subtotal == 0 ? 0 : _discount / _subtotal;
+  double get _discountPercent => _subtotal == 0 ? 0 : _manualDiscount / _subtotal;
   bool get _discountNeedsOwner =>
       _discountPercent > 0.10 && !(ref.read(authProvider).user?.isOwner ?? false);
 
@@ -425,7 +432,8 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
                       'quantity': e.quantity,
                     })
                 .toList(),
-            discountAmount: _discount,
+            discountAmount: _manualDiscount,
+            pointsRedeemed: _usePoints ? _pointsToRedeem : 0,
             notes: combinedNotes,
             idempotencyKey: key,
           );
@@ -1316,6 +1324,146 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
 
         const SizedBox(height: 18),
 
+        // 5b. Tukar Poin Reward (FR-PNT-02)
+        if (_availablePoints > 0) ...[
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF0FDF4),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: const Color(0xFF86EFAC)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.successLight,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.stars_rounded, color: AppColors.success, size: 22),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Tukar Poin Member',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          Text(
+                            'Saldo: $_availablePoints poin (Nilai: ${Formatters.rupiah(_availablePoints * 1000)})',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Switch.adaptive(
+                      value: _usePoints,
+                      activeColor: AppColors.success,
+                      onChanged: (val) {
+                        setState(() {
+                          _usePoints = val;
+                          if (val) {
+                            final maxPoinBySubtotal = (_subtotal / 1000).ceil();
+                            _pointsToRedeem = _availablePoints > maxPoinBySubtotal
+                                ? maxPoinBySubtotal
+                                : _availablePoints;
+                            if (_pointsToRedeem < 1) _pointsToRedeem = 1;
+                          } else {
+                            _pointsToRedeem = 0;
+                          }
+                        });
+                      },
+                    ),
+                  ],
+                ),
+                if (_usePoints) ...[
+                  const Divider(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Poin yang digunakan:',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: Text(
+                          '$_pointsToRedeem Poin',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.success,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (_availablePoints > 1) ...[
+                    const SizedBox(height: 8),
+                    Slider(
+                      value: _pointsToRedeem.toDouble().clamp(1.0, _availablePoints.toDouble()),
+                      min: 1.0,
+                      max: _availablePoints.toDouble(),
+                      divisions: _availablePoints - 1,
+                      activeColor: AppColors.success,
+                      inactiveColor: const Color(0xFFDCFCE7),
+                      onChanged: (val) {
+                        setState(() {
+                          _pointsToRedeem = val.round();
+                        });
+                      },
+                    ),
+                  ],
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Potongan harga didapat:',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      Text(
+                        '- ${Formatters.rupiah(_pointDiscount)}',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.success,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+        ],
+
         // 6. Ringkasan Biaya (Mockup Image 2)
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 20),
@@ -1374,6 +1522,36 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
                   ),
                 ],
               ),
+              if (_pointDiscount > 0) ...[
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.stars_rounded, size: 16, color: AppColors.success),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Potongan Poin ($_pointsToRedeem poin)',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 13,
+                            color: AppColors.success,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      '- ${Formatters.rupiah(_pointDiscount)}',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.success,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
               const Divider(height: 24),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,

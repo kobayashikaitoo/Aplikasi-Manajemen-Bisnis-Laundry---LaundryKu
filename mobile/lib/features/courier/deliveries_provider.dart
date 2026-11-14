@@ -69,9 +69,9 @@ class DeliveriesNotifier extends StateNotifier<DeliveriesState> {
     loadDeliveries();
   }
 
-  Future<bool> updateStatus(int id, String status, {String? notes}) async {
+  Future<bool> updateStatus(int id, String status, {String? notes, String? proofPhoto}) async {
     try {
-      await _repo.updateDeliveryStatus(id, status, notes: notes);
+      await _repo.updateDeliveryStatus(id, status, notes: notes, proofPhoto: proofPhoto);
       await loadDeliveries();
       return true;
     } catch (e) {

@@ -92,6 +92,7 @@ class OrderController extends Controller
             'items.*.service_id' => 'required|exists:services,id',
             'items.*.quantity' => 'required|numeric|min:0.1',
             'discount_amount' => 'nullable|integer|min:0',
+            'points_redeemed' => 'nullable|integer|min:0',
             'notes' => 'nullable|string',
         ]);
 

@@ -6,9 +6,12 @@ use App\Models\AuditLog;
 use App\Models\Delivery;
 use App\Models\Notification;
 use App\Models\Order;
+use App\Models\OrderPhoto;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 
 class DeliveryController extends Controller
 {
@@ -81,10 +84,42 @@ class DeliveryController extends Controller
         $request->validate([
             'status' => 'required|string|in:pending,assigned,on_the_way,completed,cancelled',
             'notes' => 'nullable|string',
+            'proof_photo' => 'nullable',
         ]);
 
         $oldStatus = $delivery->status;
         $delivery->status = $request->status;
+
+        $photoUrl = null;
+        if ($request->hasFile('proof_photo')) {
+            $path = $request->file('proof_photo')->store('delivery_proofs', 'public');
+            $photoUrl = "/storage/" . $path;
+        } elseif (is_string($request->proof_photo) && !empty($request->proof_photo)) {
+            $photoData = $request->proof_photo;
+            if (preg_match('/^data:image\/(\w+);base64,/', $photoData, $type)) {
+                $photoData = substr($photoData, strpos($photoData, ',') + 1);
+                $type = strtolower($type[1]);
+                $photoData = base64_decode($photoData);
+                $fileName = 'proof_' . $delivery->id . '_' . time() . '.' . $type;
+                Storage::disk('public')->put('delivery_proofs/' . $fileName, $photoData);
+                $photoUrl = '/storage/delivery_proofs/' . $fileName;
+            } else {
+                $photoUrl = $photoData;
+            }
+        }
+
+        if ($photoUrl) {
+            OrderPhoto::create([
+                'order_id' => $delivery->order_id,
+                'photo_path' => $photoUrl,
+                'photo_type' => 'completed',
+                'uploaded_by_user_id' => $request->user()->id,
+            ]);
+
+            if (Schema::hasColumn('deliveries', 'proof_photo')) {
+                $delivery->proof_photo = $photoUrl;
+            }
+        }
 
         if ($request->status === 'completed' && !$delivery->completed_at) {
             $delivery->completed_at = Carbon::now('UTC');

@@ -88,6 +88,8 @@ Route::middleware(['auth.jwt'])->group(function () {
         Route::get('/reports/dashboard', [ReportController::class, 'dashboard']);
         Route::get('/reports/cashflow', [ReportController::class, 'cashflow']);
         Route::get('/reports/demo-queries', [ReportController::class, 'demoQueries']);
+        Route::get('/reports/export/csv', [ReportController::class, 'exportCsv']);
+        Route::get('/reports/export/pdf', [ReportController::class, 'exportPdf']);
         Route::get('/audit-logs', [AuditLogController::class, 'index']);
 
         // Kelola Pegawai / Kasir

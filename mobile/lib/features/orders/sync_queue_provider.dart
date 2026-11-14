@@ -23,9 +23,9 @@ class SyncQueueState {
     this.errorMessage,
   });
 
-  int get pendingCount => items.where((i) => i.isPending).count;
-  int get syncedCount => items.where((i) => i.isSynced).count;
-  int get failedCount => items.where((i) => i.isFailed).count;
+  int get pendingCount => items.where((i) => i.isPending).length;
+  int get syncedCount => items.where((i) => i.isSynced).length;
+  int get failedCount => items.where((i) => i.isFailed).length;
 
   SyncQueueState copyWith({
     bool? isOnline,

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AuditLog;
+use App\Models\CashTransaction;
 use App\Models\Claim;
 use App\Models\Notification;
 use App\Models\Order;
@@ -159,45 +160,72 @@ class ApprovalController extends Controller
 
         // Check if ID is a claim
         if ($id < 10000) {
-            $claim = Claim::with(['order.customer.user'])->findOrFail($id);
-            $claim->status = 'Disetujui';
-            $claim->resolution = $request->notes ?? 'Persetujuan disetujui oleh Pemilik.';
-            if ($request->has('refund_amount')) {
-                $claim->refund_amount = (int) $request->refund_amount;
-            }
-            $claim->save();
+            return DB::transaction(function () use ($request, $owner, $id) {
+                $claim = Claim::with(['order.customer.user'])->findOrFail($id);
+                $claim->status = 'Disetujui';
+                $claim->resolution = $request->notes ?? 'Persetujuan disetujui oleh Pemilik.';
+                if ($request->has('refund_amount')) {
+                    $claim->refund_amount = (int) $request->refund_amount;
+                }
+                $claim->save();
 
-            // Log Audit
-            AuditLog::create([
-                'user_id' => $owner->id,
-                'action' => 'APPROVE_CLAIM',
-                'entity_type' => 'Claim',
-                'entity_id' => $claim->id,
-                'new_values' => [
-                    'status' => 'Disetujui',
-                    'resolution' => $claim->resolution,
-                    'refund_amount' => $claim->refund_amount,
-                ],
-                'ip_address' => $request->ip(),
-            ]);
+                // Integrasi Kas Keluar: Otomatis buat entri pengeluaran kas jika ada ganti rugi (refund)
+                if ($claim->refund_amount > 0) {
+                    $branchId = $claim->order?->branch_id ?? $owner->branch_id ?? 1;
+                    $claimDesc = "Kompensasi Ganti Rugi Klaim #{$claim->id} (Order #{$claim->order?->order_no})";
 
-            // Notify Customer
-            $customerUser = $claim->order?->customer?->user;
-            if ($customerUser) {
-                Notification::create([
-                    'user_id' => $customerUser->id,
-                    'order_id' => $claim->order_id,
-                    'type' => 'claim',
-                    'title' => 'Pengajuan Klaim Disetujui',
-                    'message' => "Klaim untuk pesanan #{$claim->order->order_no} telah disetujui oleh Pemilik.",
-                    'is_read' => false,
+                    $alreadyRecorded = CashTransaction::where('branch_id', $branchId)
+                        ->where('order_id', $claim->order_id)
+                        ->where('category', 'claim_refund')
+                        ->where('description', 'like', "%Klaim #{$claim->id}%")
+                        ->exists();
+
+                    if (!$alreadyRecorded) {
+                        CashTransaction::create([
+                            'branch_id' => $branchId,
+                            'order_id' => $claim->order_id,
+                            'user_id' => $owner->id,
+                            'transaction_type' => 'out',
+                            'category' => 'claim_refund',
+                            'amount' => $claim->refund_amount,
+                            'description' => "{$claimDesc}: " . ($claim->claim_type ?? 'Garansi Pakaian'),
+                        ]);
+                    }
+                }
+
+                // Log Audit
+                AuditLog::create([
+                    'user_id' => $owner->id,
+                    'action' => 'APPROVE_CLAIM',
+                    'entity_type' => 'Claim',
+                    'entity_id' => $claim->id,
+                    'new_values' => [
+                        'status' => 'Disetujui',
+                        'resolution' => $claim->resolution,
+                        'refund_amount' => $claim->refund_amount,
+                    ],
+                    'ip_address' => $request->ip(),
                 ]);
-            }
 
-            return response()->json([
-                'message' => 'Persetujuan klaim berhasil disetujui.',
-                'data' => $claim
-            ]);
+                // Notify Customer
+                $customerUser = $claim->order?->customer?->user;
+                if ($customerUser) {
+                    Notification::create([
+                        'user_id' => $customerUser->id,
+                        'order_id' => $claim->order_id,
+                        'type' => 'claim',
+                        'title' => 'Pengajuan Klaim Disetujui',
+                        'message' => "Klaim untuk pesanan #{$claim->order?->order_no} telah disetujui oleh Pemilik. " .
+                            ($claim->refund_amount > 0 ? "Kompensasi sebesar Rp " . number_format($claim->refund_amount, 0, ',', '.') . " telah disiapkan." : ""),
+                        'is_read' => false,
+                    ]);
+                }
+
+                return response()->json([
+                    'message' => 'Persetujuan klaim berhasil disetujui dan kas keluar tercatat.',
+                    'data' => $claim
+                ]);
+            });
         }
 
         // For other types (cancellation, discount)

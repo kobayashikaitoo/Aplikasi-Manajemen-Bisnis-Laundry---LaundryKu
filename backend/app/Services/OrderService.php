@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\OrderStatus;
 use App\Models\Customer;
+use App\Models\LoyaltyTransaction;
 use App\Models\Notification;
 use App\Models\Order;
 use App\Models\OrderItem;
@@ -87,17 +88,31 @@ class OrderService
                 ];
             }
 
-            // 2. Validate Discount (BR-11)
-            $discountAmount = (int) ($data['discount_amount'] ?? 0);
-            if ($discountAmount > 0) {
-                $maxAllowedDiscountWithoutOwner = (int) floor($subtotal * 0.10);
-                if ($discountAmount > $maxAllowedDiscountWithoutOwner && !$creator->isOwner()) {
+            // 2. Validate Discount (BR-11) & Point Redemption (FR-PNT-02)
+            $manualDiscount = (int) ($data['discount_amount'] ?? 0);
+            $pointsRedeemed = (int) ($data['points_redeemed'] ?? 0);
+            $pointDiscount = 0;
+
+            if ($pointsRedeemed > 0) {
+                if ($customer->point_balance < $pointsRedeemed) {
                     throw ValidationException::withMessages([
-                        'discount_amount' => 'Diskon di atas 10% subtotal harus disetujui atau dibuat oleh pemilik cabang.',
+                        'points_redeemed' => "Saldo poin tidak mencukupi. Saldo tersedia: {$customer->point_balance} poin.",
+                    ]);
+                }
+                // 1 Poin = Rp1.000 potongan harga langsung
+                $pointDiscount = $pointsRedeemed * 1000;
+            }
+
+            if ($manualDiscount > 0) {
+                $maxAllowedDiscountWithoutOwner = (int) floor($subtotal * 0.10);
+                if ($manualDiscount > $maxAllowedDiscountWithoutOwner && !$creator->isOwner()) {
+                    throw ValidationException::withMessages([
+                        'discount_amount' => 'Diskon manual di atas 10% subtotal harus disetujui atau dibuat oleh pemilik cabang.',
                     ]);
                 }
             }
 
+            $discountAmount = min($subtotal, $manualDiscount + $pointDiscount);
             $totalAmount = max(0, $subtotal - $discountAmount);
 
             // 3. Generate Order No (FR-AUD-05)
@@ -127,6 +142,22 @@ class OrderService
             // Save items
             foreach ($itemsData as $item) {
                 $order->items()->create($item);
+            }
+
+            // Deduct customer points if redeemed
+            if ($pointsRedeemed > 0) {
+                $newBalance = max(0, $customer->point_balance - $pointsRedeemed);
+                $customer->point_balance = $newBalance;
+                $customer->save();
+
+                LoyaltyTransaction::create([
+                    'customer_id' => $customer->id,
+                    'order_id' => $order->id,
+                    'type' => 'redeem',
+                    'points' => $pointsRedeemed,
+                    'balance_after' => $newBalance,
+                    'description' => "Tukar {$pointsRedeemed} poin untuk potongan pesanan #{$orderNo}",
+                ]);
             }
 
             // 5. Initial status log

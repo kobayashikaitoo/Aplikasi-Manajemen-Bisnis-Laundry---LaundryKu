@@ -35,12 +35,14 @@ class CustomerModel {
   final int id;
   final String name;
   final String phone;
+  final String? address;
   final int pointBalance;
 
   const CustomerModel({
     required this.id,
     required this.name,
     required this.phone,
+    this.address,
     required this.pointBalance,
   });
 
@@ -48,6 +50,7 @@ class CustomerModel {
         id: json['id'],
         name: json['name'] ?? '',
         phone: json['phone'] ?? '',
+        address: json['address'] as String?,
         pointBalance: (json['point_balance'] ?? 0).toInt(),
       );
 }
@@ -349,6 +352,39 @@ class LoyaltyTransactionModel {
       );
 }
 
+class DailyOmzetModel {
+  final String date;
+  final int omzet;
+
+  const DailyOmzetModel({required this.date, required this.omzet});
+
+  factory DailyOmzetModel.fromJson(Map<String, dynamic> json) => DailyOmzetModel(
+        date: json['date'] ?? '',
+        omzet: (json['omzet'] ?? 0).toInt(),
+      );
+}
+
+class ServiceRevenueModel {
+  final String serviceName;
+  final int totalRevenue;
+  final double totalQuantity;
+
+  const ServiceRevenueModel({
+    required this.serviceName,
+    required this.totalRevenue,
+    required this.totalQuantity,
+  });
+
+  factory ServiceRevenueModel.fromJson(Map<String, dynamic> json) =>
+      ServiceRevenueModel(
+        serviceName: json['service_name_snap'] ?? 'Layanan',
+        totalRevenue: (json['total_revenue'] ?? 0).toInt(),
+        totalQuantity: (json['total_quantity'] is num)
+            ? (json['total_quantity'] as num).toDouble()
+            : (double.tryParse(json['total_quantity']?.toString() ?? '0') ?? 0.0),
+      );
+}
+
 class DashboardModel {
   final int omzetToday;
   final int orderCountToday;
@@ -358,6 +394,9 @@ class DashboardModel {
   final int currentBalance;
   final Map<String, int> statusCounts;
   final List<OrderModel> nearDueOrders;
+  final List<DailyOmzetModel> dailyOmzet7d;
+  final List<ServiceRevenueModel> revenuePerService;
+  final List<CustomerModel> inactiveCustomers;
 
   const DashboardModel({
     required this.omzetToday,
@@ -368,6 +407,9 @@ class DashboardModel {
     required this.currentBalance,
     required this.statusCounts,
     required this.nearDueOrders,
+    this.dailyOmzet7d = const [],
+    this.revenuePerService = const [],
+    this.inactiveCustomers = const [],
   });
 
   factory DashboardModel.fromJson(Map<String, dynamic> json) {
@@ -375,6 +417,21 @@ class DashboardModel {
     final statusCounts = <String, int>{};
     (json['status_counts'] as Map<String, dynamic>? ?? {}).forEach(
         (k, v) => statusCounts[k] = (v as num).toInt());
+
+    final analytics = json['analytics'] as Map<String, dynamic>? ?? {};
+
+    final dailyOmzet7d = ((analytics['q1_daily_omzet_7d'] ?? json['q1_daily_omzet_7d'] ?? []) as List)
+        .map((e) => DailyOmzetModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+
+    final revenuePerService = ((analytics['q5_revenue_per_service'] ?? json['q5_revenue_per_service'] ?? []) as List)
+        .map((e) => ServiceRevenueModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+
+    final inactiveCustomers = ((analytics['q4_inactive_customers_30d'] ?? json['q4_inactive_customers_30d'] ?? []) as List)
+        .map((e) => CustomerModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+
     return DashboardModel(
       omzetToday: (today['omzet'] ?? 0).toInt(),
       orderCountToday: (today['order_count'] ?? 0).toInt(),
@@ -386,6 +443,9 @@ class DashboardModel {
       nearDueOrders: ((json['near_due_orders'] ?? []) as List)
           .map((e) => OrderModel.fromJson(e))
           .toList(),
+      dailyOmzet7d: dailyOmzet7d,
+      revenuePerService: revenuePerService,
+      inactiveCustomers: inactiveCustomers,
     );
   }
 }

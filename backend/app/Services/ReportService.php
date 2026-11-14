@@ -95,6 +95,7 @@ class ReportService
             'current_balance' => $currentBalance,
             'status_counts' => $statusCounts,
             'near_due_orders' => $nearDueOrders,
+            'analytics' => $this->getDemoQueries($branchId),
         ];
     }
 
@@ -131,15 +132,25 @@ class ReportService
     {
         $now = Carbon::now('UTC');
 
-        // 1. Omzet harian dalam 7 hari terakhir
-        $sevenDaysAgo = $now->copy()->subDays(7)->startOfDay();
-        $dailyOmzet = CashTransaction::where('branch_id', $branchId)
+        // 1. Omzet harian dalam 7 hari terakhir (dipastikan berurutan 7 hari penuh)
+        $sevenDaysAgo = $now->copy()->subDays(6)->startOfDay();
+        $dailyRecords = CashTransaction::where('branch_id', $branchId)
             ->where('transaction_type', 'in')
             ->where('created_at', '>=', $sevenDaysAgo)
             ->select(DB::raw('DATE(created_at) as date'), DB::raw('SUM(amount) as omzet'))
             ->groupBy('date')
             ->orderBy('date', 'asc')
-            ->get();
+            ->pluck('omzet', 'date')
+            ->toArray();
+
+        $dailyOmzet = [];
+        for ($i = 6; $i >= 0; $i--) {
+            $d = $now->copy()->subDays($i)->format('Y-m-d');
+            $dailyOmzet[] = [
+                'date' => $d,
+                'omzet' => (int) ($dailyRecords[$d] ?? 0),
+            ];
+        }
 
         // 2. Jumlah order per status saat ini
         $ordersPerStatus = Order::where('branch_id', $branchId)
@@ -171,7 +182,14 @@ class ReportService
         ->select('service_name_snap', DB::raw('SUM(subtotal) as total_revenue'), DB::raw('SUM(quantity) as total_quantity'))
         ->groupBy('service_name_snap')
         ->orderBy('total_revenue', 'desc')
-        ->get();
+        ->get()
+        ->map(function ($item) {
+            return [
+                'service_name_snap' => $item->service_name_snap,
+                'total_revenue' => (int) $item->total_revenue,
+                'total_quantity' => (float) $item->total_quantity,
+            ];
+        });
 
         return [
             'q1_daily_omzet_7d' => $dailyOmzet,

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CashTransaction;
 use App\Models\Claim;
 use App\Models\Notification;
 use App\Models\Order;
@@ -202,31 +203,59 @@ class ClaimController extends Controller
             'refund_amount' => 'nullable|integer|min:0',
         ]);
 
-        $claim->status = $request->status;
-        if ($request->has('resolution')) {
-            $claim->resolution = $request->resolution;
-        }
-        if ($request->has('refund_amount')) {
-            $claim->refund_amount = (int) $request->refund_amount;
-        }
-        $claim->save();
+        return DB::transaction(function () use ($request, $claim) {
+            $user = $request->user();
+            $claim->status = $request->status;
+            if ($request->has('resolution')) {
+                $claim->resolution = $request->resolution;
+            }
+            if ($request->has('refund_amount')) {
+                $claim->refund_amount = (int) $request->refund_amount;
+            }
+            $claim->save();
 
-        // Kirim notifikasi update status ke pelanggan
-        $customerUser = $claim->order?->customer?->user;
-        if ($customerUser) {
-            Notification::create([
-                'user_id' => $customerUser->id,
-                'order_id' => $claim->order_id,
-                'type' => 'claim',
-                'title' => 'Update Status Klaim',
-                'message' => "Klaim pesanan #{$claim->order?->order_no} status saat ini: {$claim->status}." .
-                    ($claim->resolution ? " Catatan: {$claim->resolution}" : ''),
+            // Integrasi Kas Keluar: Otomatis tulis entri pengeluaran kas jika ada ganti rugi (refund)
+            if (in_array($claim->status, ['Disetujui', 'Selesai']) && $claim->refund_amount > 0) {
+                $branchId = $claim->order?->branch_id ?? $user->branch_id ?? 1;
+                $claimDesc = "Kompensasi Ganti Rugi Klaim #{$claim->id} (Order #{$claim->order?->order_no})";
+
+                $alreadyRecorded = CashTransaction::where('branch_id', $branchId)
+                    ->where('order_id', $claim->order_id)
+                    ->where('category', 'claim_refund')
+                    ->where('description', 'like', "%Klaim #{$claim->id}%")
+                    ->exists();
+
+                if (!$alreadyRecorded) {
+                    CashTransaction::create([
+                        'branch_id' => $branchId,
+                        'order_id' => $claim->order_id,
+                        'user_id' => $user->id,
+                        'transaction_type' => 'out',
+                        'category' => 'claim_refund',
+                        'amount' => $claim->refund_amount,
+                        'description' => "{$claimDesc}: " . ($claim->claim_type ?? 'Garansi Pakaian'),
+                    ]);
+                }
+            }
+
+            // Kirim notifikasi update status ke pelanggan
+            $customerUser = $claim->order?->customer?->user;
+            if ($customerUser) {
+                Notification::create([
+                    'user_id' => $customerUser->id,
+                    'order_id' => $claim->order_id,
+                    'type' => 'claim',
+                    'title' => 'Update Status Klaim',
+                    'message' => "Klaim pesanan #{$claim->order?->order_no} status saat ini: {$claim->status}." .
+                        ($claim->resolution ? " Catatan: {$claim->resolution}" : '') .
+                        ($claim->refund_amount > 0 ? " Kompensasi: Rp " . number_format($claim->refund_amount, 0, ',', '.') : ''),
+                ]);
+            }
+
+            return response()->json([
+                'data' => $claim
             ]);
-        }
-
-        return response()->json([
-            'data' => $claim
-        ]);
+        });
     }
 
     private function storePhoto(string $photoData): ?string

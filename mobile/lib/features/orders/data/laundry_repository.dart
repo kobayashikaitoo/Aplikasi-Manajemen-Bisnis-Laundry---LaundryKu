@@ -74,6 +74,7 @@ class LaundryRepository {
     required int customerId,
     required List<Map<String, dynamic>> items,
     int discountAmount = 0,
+    int pointsRedeemed = 0,
     String? notes,
     required String idempotencyKey,
   }) async {
@@ -81,6 +82,7 @@ class LaundryRepository {
       'customer_id': customerId,
       'items': items,
       'discount_amount': discountAmount,
+      if (pointsRedeemed > 0) 'points_redeemed': pointsRedeemed,
       if (notes != null && notes.isNotEmpty) 'notes': notes,
     }, headers: {'Idempotency-Key': idempotencyKey});
     return OrderModel.fromJson(res);
@@ -124,10 +126,18 @@ class LaundryRepository {
     await _api.patch('/notifications/$id/read');
   }
 
-  // ---- Owner: dashboard, cashflow, audit ----
+  // ---- Owner: dashboard, cashflow, audit, demo-queries ----
   Future<DashboardModel> fetchDashboard() async {
     final res = await _api.get('/reports/dashboard');
     return DashboardModel.fromJson(res);
+  }
+
+  Future<Map<String, dynamic>> fetchDemoQueries() async {
+    final res = await _api.get('/reports/demo-queries');
+    if (res is Map<String, dynamic>) {
+      return res;
+    }
+    return {};
   }
 
   Future<CashflowModel> fetchCashflow() async {
@@ -201,10 +211,11 @@ class LaundryRepository {
     return [];
   }
 
-  Future<DeliveryModel> updateDeliveryStatus(int id, String status, {String? notes}) async {
+  Future<DeliveryModel> updateDeliveryStatus(int id, String status, {String? notes, String? proofPhoto}) async {
     final res = await _api.patch('/deliveries/$id/status', data: {
       'status': status,
       if (notes != null) 'notes': notes,
+      if (proofPhoto != null) 'proof_photo': proofPhoto,
     });
     return DeliveryModel.fromJson(res as Map<String, dynamic>);
   }

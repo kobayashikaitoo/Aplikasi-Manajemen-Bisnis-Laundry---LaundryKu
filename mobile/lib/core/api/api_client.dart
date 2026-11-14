@@ -80,6 +80,15 @@ class ApiClient {
     }
   }
 
+  Future<Response<dynamic>> getRaw(String path, {Map<String, dynamic>? queryParameters}) async {
+    try {
+      return await dio.get(path, queryParameters: queryParameters);
+    } on DioException catch (e) {
+      _handleDioError(e);
+      rethrow;
+    }
+  }
+
   Future<dynamic> post(
     String path, {
     dynamic data,
